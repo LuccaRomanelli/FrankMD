@@ -68,6 +68,10 @@ export default class extends Controller {
     "pinterestImageGrid",
     "s3ExternalOption",
     "reuploadToS3",
+    "resizeOptionLocal",
+    "resizeImageLocal",
+    "resizeOptionExternal",
+    "resizeImageExternal",
     "codeDialog",
     "codeLanguage",
     "codeContent",
@@ -1657,11 +1661,12 @@ export default class extends Controller {
     if (this.selectedImage.type === "local") {
       // Local image
       const uploadToS3 = this.s3Enabled && this.hasUploadToS3Target && this.uploadToS3Target.checked
+      const resizeImage = uploadToS3 && this.hasResizeImageLocalTarget && this.resizeImageLocalTarget.checked
       imageUrl = `/images/preview/${this.encodePath(this.selectedImage.path)}`
 
       if (uploadToS3) {
         // Show loading state
-        this.showImageLoading("Uploading to S3...")
+        this.showImageLoading(resizeImage ? "Resizing and uploading to S3..." : "Uploading to S3...")
         this.insertImageBtnTarget.disabled = true
 
         try {
@@ -1671,7 +1676,7 @@ export default class extends Controller {
               "Content-Type": "application/json",
               "X-CSRF-Token": this.csrfToken
             },
-            body: JSON.stringify({ path: this.selectedImage.path })
+            body: JSON.stringify({ path: this.selectedImage.path, resize: resizeImage })
           })
 
           if (!response.ok) {
@@ -1694,11 +1699,12 @@ export default class extends Controller {
     } else {
       // External image (Google/Pinterest)
       const reuploadToS3 = this.s3Enabled && this.hasReuploadToS3Target && this.reuploadToS3Target.checked
+      const resizeImage = reuploadToS3 && this.hasResizeImageExternalTarget && this.resizeImageExternalTarget.checked
       imageUrl = this.selectedImage.url
 
       if (reuploadToS3) {
         // Show loading state
-        this.showImageLoading("Downloading and uploading to S3...")
+        this.showImageLoading(resizeImage ? "Downloading, resizing and uploading to S3..." : "Downloading and uploading to S3...")
         this.insertImageBtnTarget.disabled = true
 
         try {
@@ -1708,7 +1714,7 @@ export default class extends Controller {
               "Content-Type": "application/json",
               "X-CSRF-Token": this.csrfToken
             },
-            body: JSON.stringify({ url: this.selectedImage.url })
+            body: JSON.stringify({ url: this.selectedImage.url, resize: resizeImage })
           })
 
           if (!response.ok) {
@@ -1760,6 +1766,24 @@ export default class extends Controller {
     this.scheduleAutoSave()
     this.updatePreview()
     this.closeImageDialog()
+  }
+
+  onS3CheckboxChange(event) {
+    if (this.hasResizeOptionLocalTarget) {
+      this.resizeOptionLocalTarget.classList.toggle("hidden", !event.target.checked)
+      if (!event.target.checked && this.hasResizeImageLocalTarget) {
+        this.resizeImageLocalTarget.checked = false
+      }
+    }
+  }
+
+  onS3ExternalCheckboxChange(event) {
+    if (this.hasResizeOptionExternalTarget) {
+      this.resizeOptionExternalTarget.classList.toggle("hidden", !event.target.checked)
+      if (!event.target.checked && this.hasResizeImageExternalTarget) {
+        this.resizeImageExternalTarget.checked = false
+      }
+    }
   }
 
   showImageLoading(message) {
@@ -2973,6 +2997,7 @@ export default class extends Controller {
           type="button"
           data-index="${index}"
           data-video-id="${video.id}"
+          data-video-title="${this.escapeHtml(video.title)}"
           data-action="click->app#selectYoutubeVideo keydown->app#onYoutubeResultKeydown"
           class="flex flex-col rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-900 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors ${selectedClass} focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
@@ -3031,6 +3056,7 @@ export default class extends Controller {
 
   selectYoutubeVideo(event) {
     const videoId = event.currentTarget.dataset.videoId
+    const videoTitle = event.currentTarget.dataset.videoTitle || "YouTube video"
 
     if (!videoId || !this.hasTextareaTarget) {
       return
@@ -3039,7 +3065,7 @@ export default class extends Controller {
     const embedCode = `<div class="embed-container">
   <iframe
     src="https://www.youtube.com/embed/${videoId}"
-    title="YouTube video player"
+    title="${videoTitle}"
     frameborder="0"
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
     referrerpolicy="strict-origin-when-cross-origin"

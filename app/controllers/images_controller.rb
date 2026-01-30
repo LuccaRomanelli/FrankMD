@@ -43,7 +43,8 @@ class ImagesController < ApplicationController
     end
 
     path = params[:path]
-    s3_url = ImagesService.upload_to_s3(path)
+    resize = params[:resize] == true || params[:resize] == "true"
+    s3_url = ImagesService.upload_to_s3(path, resize: resize)
 
     if s3_url
       render json: { url: s3_url }
@@ -67,7 +68,8 @@ class ImagesController < ApplicationController
       return render json: { error: "URL is required" }, status: :bad_request
     end
 
-    s3_url = ImagesService.download_and_upload_to_s3(url)
+    resize = params[:resize] == true || params[:resize] == "true"
+    s3_url = ImagesService.download_and_upload_to_s3(url, resize: resize)
     if s3_url
       render json: { url: s3_url }
     else

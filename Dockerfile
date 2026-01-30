@@ -14,7 +14,8 @@ WORKDIR /rails
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
       curl \
-      libjemalloc2 && \
+      libjemalloc2 \
+      imagemagick && \
     ln -sf /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists/*
 

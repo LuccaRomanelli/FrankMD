@@ -772,6 +772,7 @@
             <input
               type="checkbox"
               data-app-target="uploadToS3"
+              data-action="change->app#onS3CheckboxChange"
               class="rounded border-zinc-300 dark:border-zinc-600 text-blue-500 focus:ring-blue-500"
             >
             <span>Upload to AWS S3 first</span>
@@ -779,6 +780,17 @@
           <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1 ml-6">
             Image will be uploaded to S3 and the URL will be used instead of local path
           </p>
+          <!-- Resize option (only when S3 is checked) -->
+          <div class="hidden mt-2 ml-6" data-app-target="resizeOptionLocal">
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                data-app-target="resizeImageLocal"
+                class="rounded border-zinc-300 dark:border-zinc-600 text-blue-500 focus:ring-blue-500"
+              >
+              <span>Reduce to half size (50% + compress)</span>
+            </label>
+          </div>
         </div>
 
         <!-- S3 Re-upload Option (for external images) -->
@@ -787,6 +799,7 @@
             <input
               type="checkbox"
               data-app-target="reuploadToS3"
+              data-action="change->app#onS3ExternalCheckboxChange"
               class="rounded border-zinc-300 dark:border-zinc-600 text-blue-500 focus:ring-blue-500"
             >
             <span>Download and re-upload to AWS S3</span>
@@ -794,6 +807,17 @@
           <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1 ml-6">
             Image will be downloaded and uploaded to your S3, using your URL instead of the original
           </p>
+          <!-- Resize option (only when S3 is checked) -->
+          <div class="hidden mt-2 ml-6" data-app-target="resizeOptionExternal">
+            <label class="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                data-app-target="resizeImageExternal"
+                class="rounded border-zinc-300 dark:border-zinc-600 text-blue-500 focus:ring-blue-500"
+              >
+              <span>Reduce to half size (50% + compress)</span>
+            </label>
+          </div>
         </div>
       </div>
     </div>

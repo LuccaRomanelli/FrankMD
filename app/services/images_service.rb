@@ -47,7 +47,7 @@ class ImagesService
       full_path
     end
 
-    def upload_to_s3(path)
+    def upload_to_s3(path, resize: false)
       return nil unless s3_enabled?
 
       full_path = find_image(path)
@@ -61,11 +61,16 @@ class ImagesService
         region: config.aws_region
       )
 
-      key = "webnotes/#{Time.current.strftime('%Y/%m')}/#{full_path.basename}"
+      # Process image if resize requested
+      if resize
+        file_content, content_type, filename = resize_and_compress(full_path)
+      else
+        file_content = full_path.binread
+        content_type = content_type_for(full_path)
+        filename = full_path.basename.to_s
+      end
 
-      # Read file content
-      file_content = full_path.binread
-      content_type = content_type_for(full_path)
+      key = "webnotes/#{Time.current.strftime('%Y/%m')}/#{filename}"
 
       # Upload without ACL first (works with buckets that have ACLs disabled)
       begin
@@ -83,12 +88,13 @@ class ImagesService
       "https://#{config.aws_s3_bucket}.s3.#{config.aws_region}.amazonaws.com/#{key}"
     end
 
-    def download_and_upload_to_s3(url)
+    def download_and_upload_to_s3(url, resize: false)
       return nil unless s3_enabled?
 
       require "aws-sdk-s3"
       require "net/http"
       require "securerandom"
+      require "tempfile"
 
       # Download the image
       uri = URI(url)
@@ -115,6 +121,21 @@ class ImagesService
       original_name = File.basename(uri.path).gsub(/[^a-zA-Z0-9._-]/, "_")
       if original_name.blank? || original_name == "_" || !original_name.match?(/\.\w+$/)
         original_name = "#{SecureRandom.hex(8)}#{extension}"
+      end
+
+      # Process image if resize requested
+      if resize
+        # Write to temp file for ImageMagick processing
+        temp_file = Tempfile.new([ "webnotes", extension ])
+        begin
+          temp_file.binmode
+          temp_file.write(file_content)
+          temp_file.close
+
+          file_content, content_type, original_name = resize_and_compress(Pathname.new(temp_file.path), original_name)
+        ensure
+          temp_file.unlink
+        end
       end
 
       client = Aws::S3::Client.new(
@@ -191,6 +212,49 @@ class ImagesService
       when "image/svg+xml" then ".svg"
       when "image/bmp" then ".bmp"
       else ".jpg"
+      end
+    end
+
+    def resize_and_compress(source_path, original_name = nil)
+      require "tempfile"
+      require "open3"
+
+      original_name ||= source_path.basename.to_s
+
+      # Change extension to .jpg for compressed output
+      base_name = File.basename(original_name, ".*")
+      output_name = "#{base_name}.jpg"
+
+      # Create temp file for output
+      output_file = Tempfile.new([ "webnotes_resized", ".jpg" ])
+      begin
+        output_file.close
+
+        # Use ImageMagick to resize to 50% and compress to 70% quality
+        # -resize 50% reduces dimensions by half
+        # -quality 70 sets JPEG compression quality
+        # -strip removes metadata
+        cmd = [
+          "convert",
+          source_path.to_s,
+          "-resize", "50%",
+          "-quality", "70",
+          "-strip",
+          output_file.path
+        ]
+
+        stdout, stderr, status = Open3.capture3(*cmd)
+
+        unless status.success?
+          Rails.logger.error "ImageMagick resize failed: #{stderr}"
+          # Fall back to original file
+          return [ source_path.binread, content_type_for(source_path), original_name ]
+        end
+
+        file_content = File.binread(output_file.path)
+        [ file_content, "image/jpeg", output_name ]
+      ensure
+        output_file.unlink
       end
     end
   end
