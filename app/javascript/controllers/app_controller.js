@@ -89,7 +89,9 @@ export default class extends Controller {
     "codeDialog",
     "codeLanguage",
     "codeContent",
+    "codeIndentTabs",
     "codeSuggestions",
+    "aboutDialog",
     "customizeDialog",
     "fontSelect",
     "fontSizeSelect",
@@ -3324,6 +3326,15 @@ export default class extends Controller {
     this.codeDialogTarget.close()
   }
 
+  // About Dialog
+  openAboutDialog() {
+    this.showDialogCentered(this.aboutDialogTarget)
+  }
+
+  closeAboutDialog() {
+    this.aboutDialogTarget.close()
+  }
+
   findCodeBlockAtPosition(text, pos) {
     // Find fenced code blocks using regex
     const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g
@@ -3396,6 +3407,78 @@ export default class extends Controller {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       event.preventDefault()
       this.insertCode()
+      return
+    }
+
+    // Handle Tab key for indentation
+    if (event.key === "Tab") {
+      event.preventDefault()
+      const textarea = this.codeContentTarget
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const value = textarea.value
+
+      // Determine indent character(s)
+      const useTabs = this.hasCodeIndentTabsTarget && this.codeIndentTabsTarget.checked
+      const indent = useTabs ? "\t" : "  "
+
+      if (start === end) {
+        // No selection - just insert indent at cursor
+        if (event.shiftKey) {
+          // Outdent: remove indent from start of current line
+          const lineStart = value.lastIndexOf("\n", start - 1) + 1
+          const lineContent = value.substring(lineStart, start)
+          if (lineContent.startsWith(indent)) {
+            textarea.value = value.substring(0, lineStart) + value.substring(lineStart + indent.length)
+            textarea.selectionStart = textarea.selectionEnd = start - indent.length
+          } else if (lineContent.startsWith("\t") || lineContent.startsWith(" ")) {
+            // Remove single space or tab if exact indent not found
+            const removeLen = lineContent.startsWith("\t") ? 1 : Math.min(lineContent.match(/^ */)[0].length, indent.length)
+            textarea.value = value.substring(0, lineStart) + value.substring(lineStart + removeLen)
+            textarea.selectionStart = textarea.selectionEnd = start - removeLen
+          }
+        } else {
+          // Indent: insert at cursor
+          textarea.value = value.substring(0, start) + indent + value.substring(end)
+          textarea.selectionStart = textarea.selectionEnd = start + indent.length
+        }
+      } else {
+        // Selection exists - indent/outdent all selected lines
+        const lineStart = value.lastIndexOf("\n", start - 1) + 1
+        const lineEnd = value.indexOf("\n", end)
+        const actualEnd = lineEnd === -1 ? value.length : lineEnd
+        const selectedLines = value.substring(lineStart, actualEnd)
+        const lines = selectedLines.split("\n")
+
+        let newLines
+        if (event.shiftKey) {
+          // Outdent
+          newLines = lines.map(line => {
+            if (line.startsWith(indent)) {
+              return line.substring(indent.length)
+            } else if (line.startsWith("\t")) {
+              return line.substring(1)
+            } else if (line.startsWith(" ")) {
+              const spaces = line.match(/^ */)[0].length
+              return line.substring(Math.min(spaces, indent.length))
+            }
+            return line
+          })
+        } else {
+          // Indent
+          newLines = lines.map(line => indent + line)
+        }
+
+        const newText = newLines.join("\n")
+        textarea.value = value.substring(0, lineStart) + newText + value.substring(actualEnd)
+
+        // Restore selection
+        textarea.selectionStart = lineStart
+        textarea.selectionEnd = lineStart + newText.length
+      }
+
+      // Trigger input event for any listeners
+      textarea.dispatchEvent(new Event("input", { bubbles: true }))
     }
   }
 
