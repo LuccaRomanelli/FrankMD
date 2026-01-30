@@ -43,35 +43,115 @@ A simple, feature-rich, self-hosted markdown note-taking app built with Ruby on 
 - YouTube API for video search (optional)
 - Google Custom Search for image search (optional)
 
-## Quick Start with Docker
+## Quick Start
 
-The fastest way to get started:
+Add this function to your `~/.bashrc` or `~/.zshrc`:
 
 ```bash
-# Create a directory for your notes
-mkdir -p ~/notes
+wn() {
+  docker run --rm -p 3000:80 \
+    -v "$(realpath "${1:-.}")":/rails/notes \
+    akitaonrails/webnotes:latest
+}
+```
 
-# Run WebNotes
-docker run -d \
-  -p 3000:80 \
-  -v ~/notes:/rails/notes \
-  --name webnotes \
-  akitaonrails/webnotes:latest
+Then reload your shell and run:
+
+```bash
+# Open current directory as notes
+wn .
+
+# Or open a specific directory
+wn ~/my-blog/content
 
 # Open http://localhost:3000
 ```
 
-Or use Docker Compose (recommended):
+Press `Ctrl+C` to stop.
+
+### With Optional Features
+
+For S3 image uploads and YouTube search, export the environment variables first:
 
 ```bash
-# Clone the repo
-git clone https://github.com/akitaonrails/webnotes.git
-cd webnotes
+wn() {
+  docker run --rm -p 3000:80 \
+    -v "$(realpath "${1:-.}")":/rails/notes \
+    ${IMAGES_PATH:+-v "$(realpath "$IMAGES_PATH")":/rails/images -e IMAGES_PATH=/rails/images} \
+    ${AWS_ACCESS_KEY_ID:+-e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"} \
+    ${AWS_SECRET_ACCESS_KEY:+-e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"} \
+    ${AWS_S3_BUCKET:+-e AWS_S3_BUCKET="$AWS_S3_BUCKET"} \
+    ${AWS_REGION:+-e AWS_REGION="$AWS_REGION"} \
+    ${YOUTUBE_API_KEY:+-e YOUTUBE_API_KEY="$YOUTUBE_API_KEY"} \
+    ${GOOGLE_API_KEY:+-e GOOGLE_API_KEY="$GOOGLE_API_KEY"} \
+    ${GOOGLE_CSE_ID:+-e GOOGLE_CSE_ID="$GOOGLE_CSE_ID"} \
+    akitaonrails/webnotes:latest
+}
+```
 
-# Start with your notes directory
-NOTES_PATH=~/notes docker compose up -d
+Then set your keys in `~/.bashrc` or `~/.zshrc`:
 
-# Open http://localhost:3000
+```bash
+# Optional: Local images directory
+export IMAGES_PATH=~/Pictures
+
+# Optional: S3 for image hosting
+export AWS_ACCESS_KEY_ID=your-key
+export AWS_SECRET_ACCESS_KEY=your-secret
+export AWS_S3_BUCKET=your-bucket
+export AWS_REGION=us-east-1
+
+# Optional: YouTube video search
+export YOUTUBE_API_KEY=your-youtube-api-key
+
+# Optional: Google image search
+export GOOGLE_API_KEY=your-google-api-key
+export GOOGLE_CSE_ID=your-search-engine-id
+```
+
+### Running in Background
+
+To run as a persistent service:
+
+```bash
+# Start in background
+docker run -d --name webnotes -p 3000:80 \
+  -v ~/notes:/rails/notes \
+  --restart unless-stopped \
+  akitaonrails/webnotes:latest
+
+# Stop
+docker stop webnotes
+
+# Start again
+docker start webnotes
+
+# Remove
+docker rm -f webnotes
+```
+
+### Using Docker Compose
+
+For a more permanent setup, create a `docker-compose.yml`:
+
+```yaml
+services:
+  webnotes:
+    image: akitaonrails/webnotes:latest
+    container_name: webnotes
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./notes:/rails/notes
+    environment:
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+```
+
+```bash
+# Generate secret and start
+echo "SECRET_KEY_BASE=$(openssl rand -hex 64)" > .env
+docker compose up -d
 ```
 
 ## Configuration
@@ -132,7 +212,7 @@ Note: Google Custom Search has a free tier of 100 queries/day.
 |----------|--------|
 | `Ctrl+N` | New note |
 | `Ctrl+S` | Save now |
-| `Ctrl+P` | Find file by name |
+| `Ctrl+P` | Find file by path |
 | `Ctrl+Shift+F` | Search in file contents |
 | `Ctrl+E` | Toggle sidebar |
 | `Ctrl+B` | Toggle typewriter mode |
@@ -177,46 +257,7 @@ Examples:
 - "What's New in 2026?" → `whats-new-in-2026`
 - "Código & Programação" → `codigo-programacao`
 
-## Self-Hosting
-
-### Home Server with Docker Compose
-
-Create a `docker-compose.yml`:
-
-```yaml
-services:
-  webnotes:
-    image: akitaonrails/webnotes:latest
-    container_name: webnotes
-    restart: unless-stopped
-    ports:
-      - "3000:80"
-    volumes:
-      - ./notes:/rails/notes
-      - ./images:/rails/images  # optional
-    environment:
-      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
-      - NOTES_PATH=/rails/notes
-      - IMAGES_PATH=/rails/images
-      # Add optional keys as needed
-      # - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
-      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      # - AWS_S3_BUCKET=${AWS_S3_BUCKET}
-      # - AWS_REGION=${AWS_REGION}
-```
-
-Generate a secret key:
-
-```bash
-# Generate and save to .env
-echo "SECRET_KEY_BASE=$(openssl rand -hex 64)" >> .env
-
-# Start
-docker compose up -d
-```
-
-### Exposing to the Internet with Cloudflare Tunnel
+## Remote Access with Cloudflare Tunnel
 
 For secure remote access without opening ports:
 
