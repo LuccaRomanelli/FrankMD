@@ -1,86 +1,135 @@
 # frozen_string_literal: true
 
 class NotesController < ApplicationController
-  before_action :set_service
+  before_action :set_note, only: [ :update, :destroy, :rename ]
 
   def index
-    @tree = @service.list_tree
+    @tree = Note.all
+    @initial_path = params[:file]
+    @initial_note = load_initial_note if @initial_path.present?
   end
 
   def tree
-    render json: @service.list_tree
+    render json: Note.all
   end
 
   def show
-    path = normalize_path(params[:path])
-    content = @service.read(path)
-    render json: { path: path, content: content }
-  rescue NotesService::NotFoundError
-    render json: { error: "Note not found" }, status: :not_found
+    path = Note.normalize_path(params[:path])
+
+    # JSON API request - check Accept header since .md extension confuses format detection
+    if json_request?
+      begin
+        note = Note.find(path)
+        render json: { path: note.path, content: note.content }
+      rescue NotesService::NotFoundError
+        render json: { error: "Note not found" }, status: :not_found
+      end
+      return
+    end
+
+    # HTML request - render SPA with file loaded
+    @tree = Note.all
+    @initial_path = path
+    @initial_note = load_initial_note
+    render :index, formats: [ :html ]
   end
 
   def create
-    path = normalize_path(params[:path])
-    content = params[:content] || ""
+    path = Note.normalize_path(params[:path])
+    @note = Note.new(path: path, content: params[:content] || "")
 
-    if @service.exists?(path)
+    if @note.exists?
       render json: { error: "Note already exists" }, status: :unprocessable_entity
       return
     end
 
-    @service.write(path, content)
-    render json: { path: path, message: "Note created" }, status: :created
-  rescue NotesService::InvalidPathError => e
-    render json: { error: e.message }, status: :unprocessable_entity
+    if @note.save
+      render json: { path: @note.path, message: "Note created" }, status: :created
+    else
+      render json: { error: @note.errors.full_messages.join(", ") }, status: :unprocessable_entity
+    end
   end
 
   def update
-    path = normalize_path(params[:path])
-    content = params[:content] || ""
+    @note.content = params[:content] || ""
 
-    @service.write(path, content)
-    render json: { path: path, message: "Note saved" }
-  rescue NotesService::InvalidPathError => e
-    render json: { error: e.message }, status: :unprocessable_entity
+    if @note.save
+      render json: { path: @note.path, message: "Note saved" }
+    else
+      render json: { error: @note.errors.full_messages.join(", ") }, status: :unprocessable_entity
+    end
   end
 
   def destroy
-    path = normalize_path(params[:path])
-    @service.delete(path)
-    render json: { message: "Note deleted" }
-  rescue NotesService::NotFoundError
-    render json: { error: "Note not found" }, status: :not_found
+    if @note.destroy
+      render json: { message: "Note deleted" }
+    else
+      render json: { error: @note.errors.full_messages.join(", ") }, status: :not_found
+    end
   end
 
   def rename
-    old_path = normalize_path(params[:path])
-    new_path = normalize_path(params[:new_path])
+    unless @note.exists?
+      render json: { error: "Note not found" }, status: :not_found
+      return
+    end
 
-    @service.rename(old_path, new_path)
-    render json: { old_path: old_path, new_path: new_path, message: "Note renamed" }
-  rescue NotesService::NotFoundError
-    render json: { error: "Note not found" }, status: :not_found
-  rescue NotesService::InvalidPathError => e
-    render json: { error: e.message }, status: :unprocessable_entity
+    new_path = Note.normalize_path(params[:new_path])
+    old_path = @note.path
+
+    if @note.rename(new_path)
+      render json: { old_path: old_path, new_path: @note.path, message: "Note renamed" }
+    else
+      render json: { error: @note.errors.full_messages.join(", ") }, status: :unprocessable_entity
+    end
   end
 
   def search
     query = params[:q].to_s
-    results = @service.search_content(query, context_lines: 3, max_results: 20)
+    results = Note.search(query, context_lines: 3, max_results: 20)
     render json: results
   end
 
   private
 
-  def set_service
-    @service = NotesService.new
+  def json_request?
+    # Check Accept header since .md extension in URL confuses Rails format detection
+    request.headers["Accept"]&.include?("application/json") ||
+      request.xhr? ||
+      request.format.json?
   end
 
-  def normalize_path(path)
-    return "" if path.blank?
+  def set_note
+    path = Note.normalize_path(params[:path])
+    @note = Note.new(path: path)
+  end
 
-    path = path.to_s
-    path = "#{path}.md" unless path.end_with?(".md")
-    path
+  def load_initial_note
+    return nil unless @initial_path.present?
+
+    path = Note.normalize_path(@initial_path)
+    note = Note.new(path: path)
+
+    if note.exists?
+      {
+        path: note.path,
+        content: note.read,
+        exists: true
+      }
+    else
+      {
+        path: path,
+        content: nil,
+        exists: false,
+        error: "Note not found or was deleted"
+      }
+    end
+  rescue NotesService::NotFoundError
+    {
+      path: path,
+      content: nil,
+      exists: false,
+      error: "Note not found or was deleted"
+    }
   end
 end

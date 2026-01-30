@@ -1,4 +1,8 @@
-<div class="h-screen w-full flex flex-col bg-[var(--theme-bg-primary)] text-[var(--theme-text-primary)]" data-controller="app" data-app-tree-value="<%= @tree.to_json %>">
+<div class="h-screen w-full flex flex-col bg-[var(--theme-bg-primary)] text-[var(--theme-text-primary)]"
+     data-controller="app"
+     data-app-tree-value="<%= @tree.to_json %>"
+     data-app-initial-path-value="<%= @initial_path.to_json %>"
+     data-app-initial-note-value="<%= @initial_note.to_json %>">
   <!-- Header -->
   <header class="flex-none h-12 border-b border-[var(--theme-border)] flex items-center justify-between px-4 bg-[var(--theme-bg-secondary)]">
     <div class="flex items-center gap-2">

@@ -108,7 +108,9 @@ export default class extends Controller {
   ]
 
   static values = {
-    tree: Array
+    tree: Array,
+    initialPath: String,
+    initialNote: Object
   }
 
   connect() {
@@ -223,12 +225,128 @@ export default class extends Controller {
       breaks: true,
       gfm: true
     })
+
+    // Handle initial file from URL (bookmarkable URLs)
+    this.handleInitialFile()
+
+    // Setup browser history handling for back/forward buttons
+    this.setupHistoryHandling()
   }
 
   disconnect() {
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout)
     }
+  }
+
+  // URL Management for Bookmarkable URLs
+
+  handleInitialFile() {
+    // Check if server provided initial note data (from URL like /notes/path/to/file.md)
+    if (this.hasInitialNoteValue && this.initialNoteValue) {
+      const { path, content, exists, error } = this.initialNoteValue
+
+      if (exists && content !== null) {
+        // File exists - load it directly from server-provided data
+        this.currentFile = path
+        this.currentPathTarget.textContent = path.replace(/\.md$/, "")
+        this.expandParentFolders(path)
+        this.showEditor(content)
+        this.renderTree()
+        return
+      }
+
+      if (!exists) {
+        // File was requested but doesn't exist
+        this.showFileNotFoundMessage(path, error || "This file no longer exists or was deleted.")
+        // Update URL to root without adding history entry
+        this.updateUrl(null, { replace: true })
+        return
+      }
+    }
+
+    // Fallback: Check URL path directly (shouldn't normally happen if server is handling it)
+    const urlPath = this.getFilePathFromUrl()
+    if (urlPath) {
+      this.loadFile(urlPath)
+    }
+  }
+
+  getFilePathFromUrl() {
+    const path = window.location.pathname
+    const match = path.match(/^\/notes\/(.+\.md)$/)
+    if (match) {
+      return decodeURIComponent(match[1])
+    }
+
+    // Also check query param ?file=
+    const params = new URLSearchParams(window.location.search)
+    return params.get("file")
+  }
+
+  updateUrl(path, options = {}) {
+    const { replace = false } = options
+    const newUrl = path ? `/notes/${this.encodePath(path)}` : "/"
+
+    if (window.location.pathname !== newUrl) {
+      if (replace) {
+        window.history.replaceState({ file: path }, "", newUrl)
+      } else {
+        window.history.pushState({ file: path }, "", newUrl)
+      }
+    }
+  }
+
+  setupHistoryHandling() {
+    window.addEventListener("popstate", async (event) => {
+      const path = event.state?.file || this.getFilePathFromUrl()
+
+      if (path) {
+        await this.loadFile(path, { updateHistory: false })
+      } else {
+        // No file - show placeholder
+        this.currentFile = null
+        this.currentPathTarget.textContent = "Select or create a note"
+        this.editorPlaceholderTarget.classList.remove("hidden")
+        this.editorTarget.classList.add("hidden")
+        this.editorToolbarTarget.classList.add("hidden")
+        this.editorToolbarTarget.classList.remove("flex")
+        this.renderTree()
+      }
+    })
+  }
+
+  expandParentFolders(path) {
+    const parts = path.split("/")
+    let expandPath = ""
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      expandPath = expandPath ? `${expandPath}/${parts[i]}` : parts[i]
+      this.expandedFolders.add(expandPath)
+    }
+  }
+
+  showFileNotFoundMessage(path, message) {
+    this.editorPlaceholderTarget.classList.add("hidden")
+    this.editorTarget.classList.remove("hidden")
+    this.editorToolbarTarget.classList.add("hidden")
+    this.editorToolbarTarget.classList.remove("flex")
+
+    this.textareaTarget.value = ""
+    this.textareaTarget.disabled = true
+
+    this.currentPathTarget.innerHTML = `
+      <span class="text-red-500">${this.escapeHtml(path)}</span>
+      <span class="text-[var(--theme-text-muted)] ml-2">(${this.escapeHtml(message)})</span>
+    `
+
+    // Clear after a moment and return to normal state
+    setTimeout(() => {
+      this.textareaTarget.disabled = false
+      this.currentPathTarget.textContent = "Select or create a note"
+      this.editorPlaceholderTarget.classList.remove("hidden")
+      this.editorTarget.classList.add("hidden")
+    }, 5000)
   }
 
   // Tree Rendering
@@ -478,13 +596,22 @@ export default class extends Controller {
     await this.loadFile(path)
   }
 
-  async loadFile(path) {
+  async loadFile(path, options = {}) {
+    const { updateHistory = true } = options
+
     try {
       const response = await fetch(`/notes/${this.encodePath(path)}`, {
         headers: { "Accept": "application/json" }
       })
 
       if (!response.ok) {
+        if (response.status === 404) {
+          this.showFileNotFoundMessage(path, "Note not found")
+          if (updateHistory) {
+            this.updateUrl(null)
+          }
+          return
+        }
         throw new Error("Failed to load note")
       }
 
@@ -492,8 +619,16 @@ export default class extends Controller {
       this.currentFile = path
       this.currentPathTarget.textContent = path.replace(/\.md$/, "")
 
+      // Expand parent folders in tree
+      this.expandParentFolders(path)
+
       this.showEditor(data.content)
       this.renderTree()
+
+      // Update URL for bookmarkability
+      if (updateHistory) {
+        this.updateUrl(path)
+      }
     } catch (error) {
       console.error("Error loading file:", error)
       this.showSaveStatus("Error loading note", true)

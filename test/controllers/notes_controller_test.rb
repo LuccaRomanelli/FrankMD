@@ -224,4 +224,55 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     assert results.first["context"].is_a?(Array)
     assert results.first["context"].length > 1
   end
+
+  # === bookmarkable URLs ===
+
+  test "show with HTML request renders SPA with initial note data" do
+    create_test_note("bookmarked.md", "# Bookmarked Content")
+
+    get note_url(path: "bookmarked.md")
+    assert_response :success
+
+    # Should render the SPA
+    assert_select "div[data-controller='app']"
+
+    # Should include initial path data attribute
+    assert_match "bookmarked.md", response.body
+    assert_match "Bookmarked Content", response.body
+  end
+
+  test "show with HTML request for nested path renders SPA" do
+    create_test_folder("2026/01/30/my-post")
+    create_test_note("2026/01/30/my-post/index.md", "# Hugo Post")
+
+    get note_url(path: "2026/01/30/my-post/index.md")
+    assert_response :success
+
+    assert_select "div[data-controller='app']"
+    assert_match "2026/01/30/my-post/index.md", response.body
+    assert_match "Hugo Post", response.body
+  end
+
+  test "show with HTML request for missing file renders SPA with error state" do
+    get note_url(path: "nonexistent/file.md")
+    assert_response :success
+
+    # Should still render the SPA
+    assert_select "div[data-controller='app']"
+
+    # Initial note should indicate not found (HTML-escaped JSON)
+    assert_match "not found", response.body.downcase
+    # Check for exists:false in HTML-escaped JSON (the : is not escaped)
+    assert_includes response.body, ":false"
+  end
+
+  test "index with file query param loads initial note" do
+    create_test_note("from_param.md", "# From Param")
+
+    get root_url(file: "from_param.md")
+    assert_response :success
+
+    assert_select "div[data-controller='app']"
+    assert_match "From Param", response.body
+  end
 end

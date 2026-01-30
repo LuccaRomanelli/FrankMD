@@ -1,47 +1,49 @@
 # frozen_string_literal: true
 
 class FoldersController < ApplicationController
-  before_action :set_service
+  before_action :set_folder, only: [ :destroy, :rename ]
 
   def create
-    path = params[:path].to_s
+    @folder = Folder.new(path: params[:path].to_s)
 
-    if @service.exists?(path)
+    if @folder.exists?
       render json: { error: "Folder already exists" }, status: :unprocessable_entity
       return
     end
 
-    @service.create_folder(path)
-    render json: { path: path, message: "Folder created" }, status: :created
-  rescue NotesService::InvalidPathError => e
-    render json: { error: e.message }, status: :unprocessable_entity
+    if @folder.create
+      render json: { path: @folder.path, message: "Folder created" }, status: :created
+    else
+      render json: { error: @folder.errors.full_messages.join(", ") }, status: :unprocessable_entity
+    end
   end
 
   def destroy
-    path = params[:path].to_s
-    @service.delete_folder(path)
-    render json: { message: "Folder deleted" }
-  rescue NotesService::NotFoundError
-    render json: { error: "Folder not found" }, status: :not_found
-  rescue NotesService::InvalidPathError => e
-    render json: { error: e.message }, status: :unprocessable_entity
+    if @folder.destroy
+      render json: { message: "Folder deleted" }
+    else
+      error_message = @folder.errors.full_messages.join(", ")
+      status = error_message.include?("not found") ? :not_found : :unprocessable_entity
+      render json: { error: error_message }, status: status
+    end
   end
 
   def rename
-    old_path = params[:path].to_s
+    old_path = @folder.path
     new_path = params[:new_path].to_s
 
-    @service.rename(old_path, new_path)
-    render json: { old_path: old_path, new_path: new_path, message: "Folder renamed" }
-  rescue NotesService::NotFoundError
-    render json: { error: "Folder not found" }, status: :not_found
-  rescue NotesService::InvalidPathError => e
-    render json: { error: e.message }, status: :unprocessable_entity
+    if @folder.rename(new_path)
+      render json: { old_path: old_path, new_path: @folder.path, message: "Folder renamed" }
+    else
+      error_message = @folder.errors.full_messages.join(", ")
+      status = error_message.include?("not found") ? :not_found : :unprocessable_entity
+      render json: { error: error_message }, status: status
+    end
   end
 
   private
 
-  def set_service
-    @service = NotesService.new
+  def set_folder
+    @folder = Folder.new(path: params[:path].to_s)
   end
 end
