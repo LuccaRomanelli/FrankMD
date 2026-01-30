@@ -112,7 +112,18 @@ export default class extends Controller {
     "s3FolderOption",
     "uploadFolderToS3",
     "resizeOptionFolder",
-    "resizeSelectFolder"
+    "resizeSelectFolder",
+    "aiButton",
+    "aiDiffDialog",
+    "aiConfigNotice",
+    "aiDiffContent",
+    "aiOriginalText",
+    "aiCorrectedText",
+    "aiCorrectedDiff",
+    "aiProviderBadge",
+    "aiEditToggle",
+    "aiProcessingOverlay",
+    "aiProcessingProvider"
   ]
 
   static values = {
@@ -207,6 +218,10 @@ export default class extends Controller {
     this.selectedYoutubeIndex = -1
     this.youtubeApiEnabled = false
     this.checkYoutubeApiEnabled()
+
+    // AI state
+    this.aiEnabled = false
+    this.checkAiAvailability()
 
     // Sync scroll state
     this.syncScrollEnabled = true
@@ -3151,6 +3166,288 @@ export default class extends Controller {
     } catch (error) {
       this.youtubeApiEnabled = false
     }
+  }
+
+  // AI Grammar Check Methods
+
+  async checkAiAvailability() {
+    try {
+      const response = await fetch("/ai/config")
+      if (response.ok) {
+        const data = await response.json()
+        this.aiEnabled = data.enabled
+        this.aiProvider = data.provider
+        this.aiModel = data.model
+        this.aiAvailableProviders = data.available_providers || []
+      }
+    } catch (e) {
+      console.debug("AI config check failed:", e)
+      this.aiEnabled = false
+      this.aiProvider = null
+      this.aiModel = null
+      this.aiAvailableProviders = []
+    }
+  }
+
+  async openAiDialog() {
+    // Hide provider badge initially
+    if (this.hasAiProviderBadgeTarget) {
+      this.aiProviderBadgeTarget.classList.add("hidden")
+    }
+
+    // If AI is not configured, show the config notice
+    if (!this.aiEnabled) {
+      this.aiConfigNoticeTarget.classList.remove("hidden")
+      this.aiDiffContentTarget.classList.add("hidden")
+      this.showDialogCentered(this.aiDiffDialogTarget)
+      return
+    }
+
+    const text = this.textareaTarget.value
+    if (!text.trim()) {
+      alert("No text to check")
+      return
+    }
+
+    // Show loading state on button
+    const button = this.aiButtonTarget
+    const originalContent = button.innerHTML
+    button.innerHTML = `
+      <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <span>Processing...</span>
+    `
+    button.disabled = true
+
+    // Show processing overlay with provider/model info and disable editor
+    if (this.hasAiProcessingOverlayTarget) {
+      // Update the provider/model display
+      if (this.hasAiProcessingProviderTarget && this.aiProvider && this.aiModel) {
+        this.aiProcessingProviderTarget.textContent = `${this.aiProvider}: ${this.aiModel}`
+      } else if (this.hasAiProcessingProviderTarget) {
+        this.aiProcessingProviderTarget.textContent = "AI"
+      }
+      this.aiProcessingOverlayTarget.classList.remove("hidden")
+    }
+    this.textareaTarget.disabled = true
+
+    // Setup abort controller for ESC key cancellation
+    this.aiAbortController = new AbortController()
+    const handleEscKey = (e) => {
+      if (e.key === "Escape" && this.aiAbortController) {
+        this.aiAbortController.abort()
+      }
+    }
+    document.addEventListener("keydown", handleEscKey)
+
+    try {
+      const response = await fetch("/ai/fix_grammar", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": this.csrfToken
+        },
+        body: JSON.stringify({ text }),
+        signal: this.aiAbortController.signal
+      })
+
+      const data = await response.json()
+
+      if (data.error) {
+        alert(`AI Error: ${data.error}`)
+        return
+      }
+
+      // Show provider badge
+      if (this.hasAiProviderBadgeTarget && data.provider && data.model) {
+        this.aiProviderBadgeTarget.textContent = `${data.provider}: ${data.model}`
+        this.aiProviderBadgeTarget.classList.remove("hidden")
+      }
+
+      // Populate and show dialog with diff content
+      this.aiConfigNoticeTarget.classList.add("hidden")
+      this.aiDiffContentTarget.classList.remove("hidden")
+      this.aiDiffContentTarget.classList.add("flex")
+
+      // Compute and display diff
+      const diff = this.computeWordDiff(text, data.corrected)
+      this.aiOriginalTextTarget.innerHTML = this.renderDiffOriginal(diff)
+      this.aiCorrectedDiffTarget.innerHTML = this.renderDiffCorrected(diff)
+      this.aiCorrectedTextTarget.value = data.corrected
+
+      // Reset to diff view mode
+      this.aiCorrectedDiffTarget.classList.remove("hidden")
+      this.aiCorrectedTextTarget.classList.add("hidden")
+      if (this.hasAiEditToggleTarget) {
+        this.aiEditToggleTarget.textContent = "Edit"
+      }
+
+      this.showDialogCentered(this.aiDiffDialogTarget)
+    } catch (e) {
+      if (e.name === "AbortError") {
+        console.log("AI request cancelled by user")
+      } else {
+        console.error("AI request failed:", e)
+        alert("Failed to process text with AI")
+      }
+    } finally {
+      // Cleanup
+      document.removeEventListener("keydown", handleEscKey)
+      this.aiAbortController = null
+      button.innerHTML = originalContent
+      button.disabled = false
+      this.textareaTarget.disabled = false
+      if (this.hasAiProcessingOverlayTarget) {
+        this.aiProcessingOverlayTarget.classList.add("hidden")
+      }
+    }
+  }
+
+  closeAiDiffDialog() {
+    this.aiDiffDialogTarget.close()
+  }
+
+  toggleAiEditMode() {
+    const isEditing = !this.aiCorrectedTextTarget.classList.contains("hidden")
+
+    if (isEditing) {
+      // Switch to diff view
+      this.aiCorrectedTextTarget.classList.add("hidden")
+      this.aiCorrectedDiffTarget.classList.remove("hidden")
+      this.aiEditToggleTarget.textContent = "Edit"
+    } else {
+      // Switch to edit view
+      this.aiCorrectedDiffTarget.classList.add("hidden")
+      this.aiCorrectedTextTarget.classList.remove("hidden")
+      this.aiEditToggleTarget.textContent = "View Diff"
+      this.aiCorrectedTextTarget.focus()
+    }
+  }
+
+  acceptAiCorrection() {
+    const correctedText = this.aiCorrectedTextTarget.value
+    this.textareaTarget.value = correctedText
+    this.closeAiDiffDialog()
+    this.onTextareaInput() // Trigger save and preview update
+  }
+
+  // Word-level diff computation using Myers' diff algorithm (simplified)
+  computeWordDiff(original, corrected) {
+    // Tokenize into words while preserving whitespace
+    const tokenize = (text) => {
+      const tokens = []
+      const regex = /(\s+|\S+)/g
+      let match
+      while ((match = regex.exec(text)) !== null) {
+        tokens.push(match[0])
+      }
+      return tokens
+    }
+
+    const oldTokens = tokenize(original)
+    const newTokens = tokenize(corrected)
+
+    // Simple LCS-based diff
+    const diff = this.lcsWordDiff(oldTokens, newTokens)
+    return diff
+  }
+
+  // LCS-based word diff
+  lcsWordDiff(oldTokens, newTokens) {
+    const m = oldTokens.length
+    const n = newTokens.length
+
+    // Build LCS table
+    const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0))
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (oldTokens[i - 1] === newTokens[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1] + 1
+        } else {
+          dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1])
+        }
+      }
+    }
+
+    // Backtrack to find diff
+    const diff = []
+    let i = m, j = n
+    const tempDiff = []
+
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && oldTokens[i - 1] === newTokens[j - 1]) {
+        tempDiff.unshift({ type: 'equal', value: oldTokens[i - 1] })
+        i--
+        j--
+      } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+        tempDiff.unshift({ type: 'insert', value: newTokens[j - 1] })
+        j--
+      } else {
+        tempDiff.unshift({ type: 'delete', value: oldTokens[i - 1] })
+        i--
+      }
+    }
+
+    // Merge consecutive operations of the same type
+    for (const item of tempDiff) {
+      if (diff.length > 0 && diff[diff.length - 1].type === item.type) {
+        diff[diff.length - 1].value += item.value
+      } else {
+        diff.push({ ...item })
+      }
+    }
+
+    return diff
+  }
+
+  // Render diff for the original text column (shows deletions)
+  renderDiffOriginal(diff) {
+    const escapeHtml = (text) => {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+    }
+
+    let html = ''
+    for (const item of diff) {
+      const escaped = escapeHtml(item.value)
+      if (item.type === 'equal') {
+        html += `<span class="ai-diff-equal">${escaped}</span>`
+      } else if (item.type === 'delete') {
+        html += `<span class="ai-diff-del">${escaped}</span>`
+      }
+      // Don't show insertions in original view
+    }
+    return html
+  }
+
+  // Render diff for the corrected text column (shows additions)
+  renderDiffCorrected(diff) {
+    const escapeHtml = (text) => {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+    }
+
+    let html = ''
+    for (const item of diff) {
+      const escaped = escapeHtml(item.value)
+      if (item.type === 'equal') {
+        html += `<span class="ai-diff-equal">${escaped}</span>`
+      } else if (item.type === 'insert') {
+        html += `<span class="ai-diff-add">${escaped}</span>`
+      }
+      // Don't show deletions in corrected view
+    }
+    return html
   }
 
   switchVideoTab(event) {

@@ -1,0 +1,160 @@
+# frozen_string_literal: true
+
+require "test_helper"
+
+class AiControllerTest < ActionDispatch::IntegrationTest
+  def setup
+    setup_test_notes_dir
+    # Save and clear all AI-related env vars
+    @original_env = {}
+    %w[
+      OPENAI_API_KEY OPENROUTER_API_KEY ANTHROPIC_API_KEY
+      GEMINI_API_KEY OLLAMA_API_BASE AI_PROVIDER AI_MODEL
+      OPENAI_MODEL OPENROUTER_MODEL ANTHROPIC_MODEL GEMINI_MODEL OLLAMA_MODEL
+    ].each do |key|
+      @original_env[key] = ENV[key]
+      ENV.delete(key)
+    end
+  end
+
+  def teardown
+    teardown_test_notes_dir
+    # Restore original env vars
+    @original_env.each do |key, value|
+      if value
+        ENV[key] = value
+      else
+        ENV.delete(key)
+      end
+    end
+  end
+
+  # Config endpoint tests
+  test "config returns enabled false when no API keys" do
+    get "/ai/config", as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal false, data["enabled"]
+    assert_nil data["provider"]
+    assert_nil data["model"]
+    assert_empty data["available_providers"]
+  end
+
+  test "config returns enabled true when OpenAI key is set" do
+    ENV["OPENAI_API_KEY"] = "sk-test-key"
+
+    get "/ai/config", as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal true, data["enabled"]
+    assert_equal "openai", data["provider"]
+    assert_equal "gpt-4o-mini", data["model"]
+    assert_includes data["available_providers"], "openai"
+  end
+
+  test "config returns enabled true when OpenRouter key is set" do
+    ENV["OPENROUTER_API_KEY"] = "sk-or-test-key"
+
+    get "/ai/config", as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal true, data["enabled"]
+    assert_equal "openrouter", data["provider"]
+    assert_equal "openai/gpt-4o-mini", data["model"]
+  end
+
+  test "config returns enabled true when Anthropic key is set" do
+    ENV["ANTHROPIC_API_KEY"] = "sk-ant-test-key"
+
+    get "/ai/config", as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal true, data["enabled"]
+    assert_equal "anthropic", data["provider"]
+    assert_equal "claude-sonnet-4-20250514", data["model"]
+  end
+
+  test "config returns enabled true when Gemini key is set" do
+    ENV["GEMINI_API_KEY"] = "gemini-test-key"
+
+    get "/ai/config", as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal true, data["enabled"]
+    assert_equal "gemini", data["provider"]
+    assert_equal "gemini-2.0-flash", data["model"]
+  end
+
+  test "config returns enabled true when Ollama base is set" do
+    ENV["OLLAMA_API_BASE"] = "http://localhost:11434"
+
+    get "/ai/config", as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal true, data["enabled"]
+    assert_equal "ollama", data["provider"]
+    assert_equal "llama3.2:latest", data["model"]
+  end
+
+  test "config returns correct priority with multiple providers" do
+    ENV["OLLAMA_API_BASE"] = "http://localhost:11434"
+    ENV["OPENAI_API_KEY"] = "sk-test"
+    ENV["ANTHROPIC_API_KEY"] = "sk-ant-test"
+
+    get "/ai/config", as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal "openai", data["provider"]  # Highest priority
+    assert_equal 3, data["available_providers"].size
+    assert_includes data["available_providers"], "ollama"
+    assert_includes data["available_providers"], "openai"
+    assert_includes data["available_providers"], "anthropic"
+  end
+
+  test "config respects ai_provider override" do
+    ENV["OLLAMA_API_BASE"] = "http://localhost:11434"
+    ENV["OPENAI_API_KEY"] = "sk-test"
+    ENV["AI_PROVIDER"] = "openai"
+
+    get "/ai/config", as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal "openai", data["provider"]
+  end
+
+  test "config respects ai_model override" do
+    ENV["OPENAI_API_KEY"] = "sk-test"
+    ENV["AI_MODEL"] = "gpt-4-turbo"
+
+    get "/ai/config", as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal "gpt-4-turbo", data["model"]
+  end
+
+  # Fix grammar endpoint tests
+  test "fix_grammar returns error when text is blank" do
+    post "/ai/fix_grammar", params: { text: "" }, as: :json
+    assert_response :bad_request
+
+    data = JSON.parse(response.body)
+    assert_includes data["error"], "No text"
+  end
+
+  test "fix_grammar returns error when AI not configured" do
+    post "/ai/fix_grammar", params: { text: "Hello world" }, as: :json
+    assert_response :unprocessable_entity
+
+    data = JSON.parse(response.body)
+    assert_includes data["error"], "not configured"
+  end
+end

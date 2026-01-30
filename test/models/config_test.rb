@@ -8,11 +8,35 @@ class ConfigTest < ActiveSupport::TestCase
     FileUtils.mkdir_p(@test_dir)
     @original_notes_path = ENV["NOTES_PATH"]
     ENV["NOTES_PATH"] = @test_dir.to_s
+
+    # Save and clear all AI-related env vars
+    @original_ai_env = {}
+    ai_env_keys.each do |key|
+      @original_ai_env[key] = ENV[key]
+      ENV.delete(key)
+    end
   end
 
   def teardown
     FileUtils.rm_rf(@test_dir) if @test_dir&.exist?
     ENV["NOTES_PATH"] = @original_notes_path
+
+    # Restore AI env vars
+    ai_env_keys.each do |key|
+      if @original_ai_env[key]
+        ENV[key] = @original_ai_env[key]
+      else
+        ENV.delete(key)
+      end
+    end
+  end
+
+  def ai_env_keys
+    %w[
+      OPENAI_API_KEY OPENROUTER_API_KEY ANTHROPIC_API_KEY
+      GEMINI_API_KEY OLLAMA_API_BASE AI_PROVIDER AI_MODEL
+      OPENAI_MODEL OPENROUTER_MODEL ANTHROPIC_MODEL GEMINI_MODEL OLLAMA_MODEL
+    ]
   end
 
   # === Initialization ===
@@ -33,6 +57,10 @@ class ConfigTest < ActiveSupport::TestCase
     assert_includes content, "# AWS S3"
     assert_includes content, "# YouTube API"
     assert_includes content, "# Google Custom Search"
+    assert_includes content, "# AI/LLM"
+    assert_includes content, "# ollama_api_base"
+    assert_includes content, "# anthropic_api_key"
+    assert_includes content, "# gemini_api_key"
   end
 
   # === Default Values ===
@@ -185,10 +213,12 @@ class ConfigTest < ActiveSupport::TestCase
 
   test "preserves user-customized file structure when updating" do
     # User has stripped all comments and reordered settings
+    # Include an AI key placeholder to prevent upgrade from adding AI section
     @test_dir.join(".webnotes").write(<<~CONFIG)
       editor_font = hack
       theme = dark
       editor_font_size = 16
+      # ai_model = placeholder
     CONFIG
 
     config = Config.new(base_path: @test_dir)
@@ -197,19 +227,21 @@ class ConfigTest < ActiveSupport::TestCase
     content = @test_dir.join(".webnotes").read
     lines = content.lines.map(&:strip).reject(&:empty?)
 
-    # Should preserve user's ordering and have no comments
-    assert_equal 3, lines.length
+    # Should preserve user's ordering (AI placeholder is a comment so preserved)
+    assert_equal 4, lines.length
     assert_equal "editor_font = hack", lines[0]
     assert_equal "theme = gruvbox", lines[1]
     assert_equal "editor_font_size = 16", lines[2]
+    assert_equal "# ai_model = placeholder", lines[3]
   end
 
   test "does not re-add values user manually removed" do
-    # Start with full config
+    # Start with full config (include AI marker to prevent upgrade)
     @test_dir.join(".webnotes").write(<<~CONFIG)
       theme = dark
       editor_font = hack
       editor_font_size = 18
+      # ai_model = placeholder
     CONFIG
 
     # Load config (all values are in @values)
@@ -222,6 +254,7 @@ class ConfigTest < ActiveSupport::TestCase
     @test_dir.join(".webnotes").write(<<~CONFIG)
       theme = dark
       editor_font_size = 18
+      # ai_model = placeholder
     CONFIG
 
     # Create new config and change theme
@@ -264,8 +297,10 @@ class ConfigTest < ActiveSupport::TestCase
   end
 
   test "appends new key at end if not present in file" do
+    # Include AI marker to prevent upgrade from adding AI section
     @test_dir.join(".webnotes").write(<<~CONFIG)
       theme = dark
+      # ai_model = placeholder
     CONFIG
 
     config = Config.new(base_path: @test_dir)
@@ -275,7 +310,8 @@ class ConfigTest < ActiveSupport::TestCase
     lines = content.lines.map(&:strip).reject(&:empty?)
 
     assert_equal "theme = dark", lines[0]
-    assert_equal "editor_font = hack", lines[1]
+    assert_equal "# ai_model = placeholder", lines[1]
+    assert_equal "editor_font = hack", lines[2]
   end
 
   # === UI Settings ===
@@ -409,5 +445,224 @@ class ConfigTest < ActiveSupport::TestCase
       config = Config.new(base_path: @test_dir)
       assert_equal false, config.get(:typewriter_mode), "Expected '#{value}' to be false"
     end
+  end
+
+  # === AI Provider Tests ===
+
+  test "ai_providers_available returns empty when nothing configured" do
+    config = Config.new(base_path: @test_dir)
+    assert_empty config.ai_providers_available
+  end
+
+  test "ai_providers_available returns configured providers" do
+    ENV["OPENAI_API_KEY"] = "sk-test"
+    ENV["ANTHROPIC_API_KEY"] = "sk-ant-test"
+
+    config = Config.new(base_path: @test_dir)
+    providers = config.ai_providers_available
+
+    assert_includes providers, "openai"
+    assert_includes providers, "anthropic"
+    assert_not_includes providers, "ollama"
+    assert_not_includes providers, "gemini"
+  end
+
+  test "effective_ai_provider follows priority order" do
+    ENV["OLLAMA_API_BASE"] = "http://localhost:11434"
+    ENV["OPENROUTER_API_KEY"] = "sk-or-test"
+    ENV["ANTHROPIC_API_KEY"] = "sk-ant-test"
+    ENV["OPENAI_API_KEY"] = "sk-test"
+
+    config = Config.new(base_path: @test_dir)
+
+    # OpenAI has highest priority
+    assert_equal "openai", config.effective_ai_provider
+  end
+
+  test "effective_ai_provider respects explicit provider setting" do
+    ENV["OLLAMA_API_BASE"] = "http://localhost:11434"
+    ENV["OPENAI_API_KEY"] = "sk-test"
+
+    @test_dir.join(".webnotes").write("ai_provider = openai")
+    config = Config.new(base_path: @test_dir)
+
+    assert_equal "openai", config.effective_ai_provider
+  end
+
+  test "effective_ai_provider ignores unavailable provider" do
+    ENV["OLLAMA_API_BASE"] = "http://localhost:11434"
+
+    @test_dir.join(".webnotes").write("ai_provider = openai") # OpenAI not configured
+    config = Config.new(base_path: @test_dir)
+
+    assert_equal "ollama", config.effective_ai_provider
+  end
+
+  test "effective_ai_model returns provider-specific default" do
+    ENV["ANTHROPIC_API_KEY"] = "sk-ant-test"
+
+    config = Config.new(base_path: @test_dir)
+    assert_equal "claude-sonnet-4-20250514", config.effective_ai_model
+  end
+
+  test "effective_ai_model respects global ai_model override" do
+    ENV["OPENAI_API_KEY"] = "sk-test"
+
+    @test_dir.join(".webnotes").write("ai_model = gpt-4-turbo")
+    config = Config.new(base_path: @test_dir)
+
+    assert_equal "gpt-4-turbo", config.effective_ai_model
+  end
+
+  test "effective_ai_model respects provider-specific model" do
+    ENV["ANTHROPIC_API_KEY"] = "sk-ant-test"
+
+    @test_dir.join(".webnotes").write("anthropic_model = claude-3-opus-20240229")
+    config = Config.new(base_path: @test_dir)
+
+    assert_equal "claude-3-opus-20240229", config.effective_ai_model
+  end
+
+  test "feature_available? returns true for ai when any provider configured" do
+    ENV["GEMINI_API_KEY"] = "gemini-test"
+
+    config = Config.new(base_path: @test_dir)
+    assert config.feature_available?("ai")
+  end
+
+  test "feature_available? returns false for ai when no provider configured" do
+    config = Config.new(base_path: @test_dir)
+    assert_not config.feature_available?("ai")
+  end
+
+  test "ai_configured_in_file? returns true when AI credential in file" do
+    @test_dir.join(".webnotes").write("anthropic_api_key = sk-ant-test")
+    config = Config.new(base_path: @test_dir)
+
+    assert config.ai_configured_in_file?
+  end
+
+  test "ai_configured_in_file? returns false when only ai_provider in file" do
+    @test_dir.join(".webnotes").write("ai_provider = anthropic")
+    config = Config.new(base_path: @test_dir)
+
+    assert_not config.ai_configured_in_file?
+  end
+
+  test "get_ai ignores ENV when AI credential set in file" do
+    # Set ENV vars that would normally be used
+    ENV["OPENAI_API_KEY"] = "sk-env-openai"
+    ENV["OPENROUTER_API_KEY"] = "sk-env-openrouter"
+
+    # Set only anthropic in file - this should trigger file-only mode
+    @test_dir.join(".webnotes").write("anthropic_api_key = sk-file-anthropic")
+    config = Config.new(base_path: @test_dir)
+
+    # File key should be returned
+    assert_equal "sk-file-anthropic", config.get_ai("anthropic_api_key")
+    # ENV keys should be ignored (returns nil, not ENV value)
+    assert_nil config.get_ai("openai_api_key")
+    assert_nil config.get_ai("openrouter_api_key")
+  end
+
+  test "get_ai uses ENV when no AI credential in file" do
+    ENV["OPENAI_API_KEY"] = "sk-env-openai"
+
+    # No AI credentials in file, just settings
+    @test_dir.join(".webnotes").write("theme = dark")
+    config = Config.new(base_path: @test_dir)
+
+    # Should use ENV since no AI credentials in file
+    assert_equal "sk-env-openai", config.get_ai("openai_api_key")
+  end
+
+  test "effective_ai_provider uses file credentials over ENV" do
+    # Set multiple ENV providers
+    ENV["OPENAI_API_KEY"] = "sk-env-openai"
+    ENV["OPENROUTER_API_KEY"] = "sk-env-openrouter"
+
+    # Set only anthropic in file
+    @test_dir.join(".webnotes").write("anthropic_api_key = sk-file-anthropic")
+    config = Config.new(base_path: @test_dir)
+
+    # Should select anthropic (from file) not openai (from ENV)
+    assert_equal "anthropic", config.effective_ai_provider
+    assert_equal ["anthropic"], config.ai_providers_available
+  end
+
+  # === Config File Upgrade Tests ===
+
+  test "upgrade adds missing AI section to existing config" do
+    # Create old-style config without AI section
+    old_config = <<~CONFIG
+      # WebNotes Configuration
+      theme = gruvbox
+      editor_font_size = 16
+
+      # Local Images
+      # images_path = /path/to/images
+    CONFIG
+
+    @test_dir.join(".webnotes").write(old_config)
+
+    # Loading config should trigger upgrade
+    config = Config.new(base_path: @test_dir)
+
+    # Verify existing values preserved
+    assert_equal "gruvbox", config.get("theme")
+    assert_equal 16, config.get("editor_font_size")
+
+    # Verify AI section was added
+    content = @test_dir.join(".webnotes").read
+    assert_includes content, "# AI/LLM"
+    assert_includes content, "ollama_api_base"
+    assert_includes content, "anthropic_api_key"
+    assert_includes content, "gemini_api_key"
+  end
+
+  test "upgrade preserves existing values and comments" do
+    old_config = <<~CONFIG
+      # My custom header comment
+      theme = tokyo-night
+
+      # My custom comment about images
+      images_path = /my/images
+    CONFIG
+
+    @test_dir.join(".webnotes").write(old_config)
+    Config.new(base_path: @test_dir)
+
+    content = @test_dir.join(".webnotes").read
+
+    # Custom content preserved
+    assert_includes content, "# My custom header comment"
+    assert_includes content, "theme = tokyo-night"
+    assert_includes content, "# My custom comment about images"
+    assert_includes content, "images_path = /my/images"
+  end
+
+  test "upgrade does not duplicate existing AI section" do
+    # Create config with AI section already present
+    config_with_ai = <<~CONFIG
+      # WebNotes Configuration
+      theme = dark
+
+      # AI/LLM (for grammar checking)
+      openai_api_key = sk-existing
+    CONFIG
+
+    @test_dir.join(".webnotes").write(config_with_ai)
+
+    # Loading should not add another AI section
+    config = Config.new(base_path: @test_dir)
+
+    content = @test_dir.join(".webnotes").read
+
+    # Should only have one AI section marker
+    ai_section_count = content.scan(/# AI\/LLM/).count
+    assert_equal 1, ai_section_count
+
+    # Existing value preserved
+    assert_equal "sk-existing", config.get("openai_api_key")
   end
 end

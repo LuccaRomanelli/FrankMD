@@ -40,10 +40,17 @@ A simple, feature-rich, self-hosted markdown note-taking app built with Ruby on 
 - **Tables**: Visual table editor with drag-and-drop rows/columns
 - **Code blocks**: Language selection with autocomplete
 
+### AI Features
+- **Grammar Check**: AI-powered grammar, spelling, and typo correction
+- Side-by-side diff view with original and corrected text
+- Editable corrections before accepting changes
+- Supports Ollama (local), OpenAI, and OpenRouter
+
 ### Integrations
 - AWS S3 for image hosting (optional)
 - YouTube API for video search (optional)
 - Google Custom Search for image search (optional)
+- AI/LLM providers for grammar checking (optional)
 
 ## Quick Start
 
@@ -87,6 +94,18 @@ wn() {
     ${YOUTUBE_API_KEY:+-e YOUTUBE_API_KEY="$YOUTUBE_API_KEY"} \
     ${GOOGLE_API_KEY:+-e GOOGLE_API_KEY="$GOOGLE_API_KEY"} \
     ${GOOGLE_CSE_ID:+-e GOOGLE_CSE_ID="$GOOGLE_CSE_ID"} \
+    ${AI_PROVIDER:+-e AI_PROVIDER="$AI_PROVIDER"} \
+    ${AI_MODEL:+-e AI_MODEL="$AI_MODEL"} \
+    ${OLLAMA_API_BASE:+-e OLLAMA_API_BASE="$OLLAMA_API_BASE"} \
+    ${OLLAMA_MODEL:+-e OLLAMA_MODEL="$OLLAMA_MODEL"} \
+    ${OPENROUTER_API_KEY:+-e OPENROUTER_API_KEY="$OPENROUTER_API_KEY"} \
+    ${OPENROUTER_MODEL:+-e OPENROUTER_MODEL="$OPENROUTER_MODEL"} \
+    ${ANTHROPIC_API_KEY:+-e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"} \
+    ${ANTHROPIC_MODEL:+-e ANTHROPIC_MODEL="$ANTHROPIC_MODEL"} \
+    ${GEMINI_API_KEY:+-e GEMINI_API_KEY="$GEMINI_API_KEY"} \
+    ${GEMINI_MODEL:+-e GEMINI_MODEL="$GEMINI_MODEL"} \
+    ${OPENAI_API_KEY:+-e OPENAI_API_KEY="$OPENAI_API_KEY"} \
+    ${OPENAI_MODEL:+-e OPENAI_MODEL="$OPENAI_MODEL"} \
     akitaonrails/webnotes:latest
 }
 ```
@@ -109,6 +128,33 @@ export YOUTUBE_API_KEY=your-youtube-api-key
 # Optional: Google image search
 export GOOGLE_API_KEY=your-google-api-key
 export GOOGLE_CSE_ID=your-search-engine-id
+
+# Optional: AI grammar checking (configure one or more providers)
+# Priority (auto mode): OpenAI > Anthropic > Gemini > OpenRouter > Ollama
+
+# Ollama (local, free)
+export OLLAMA_API_BASE=http://localhost:11434
+export OLLAMA_MODEL=llama3.2:latest
+
+# OpenRouter
+export OPENROUTER_API_KEY=your-openrouter-api-key
+export OPENROUTER_MODEL=openai/gpt-4o-mini
+
+# Anthropic
+export ANTHROPIC_API_KEY=your-anthropic-api-key
+export ANTHROPIC_MODEL=claude-sonnet-4-20250514
+
+# Gemini
+export GEMINI_API_KEY=your-gemini-api-key
+export GEMINI_MODEL=gemini-2.0-flash
+
+# OpenAI
+export OPENAI_API_KEY=your-openai-api-key
+export OPENAI_MODEL=gpt-4o-mini
+
+# Override provider selection (optional)
+export AI_PROVIDER=auto
+export AI_MODEL=  # Override model for any provider
 ```
 
 ### Running in Background
@@ -186,6 +232,19 @@ aws_region = us-east-1
 youtube_api_key = your-youtube-key
 google_api_key = your-google-key
 google_cse_id = your-cse-id
+
+# AI/LLM (configure one or more providers)
+# ai_provider = auto
+# ollama_api_base = http://localhost:11434
+# ollama_model = llama3.2:latest
+# openrouter_api_key = sk-or-...
+# openrouter_model = openai/gpt-4o-mini
+# anthropic_api_key = sk-ant-...
+# anthropic_model = claude-sonnet-4-20250514
+# gemini_api_key = ...
+# gemini_model = gemini-2.0-flash
+# openai_api_key = sk-...
+# openai_model = gpt-4o-mini
 ```
 
 **Priority order:** File settings override environment variables, which override defaults.
@@ -194,6 +253,8 @@ This means you can:
 - Set global defaults via environment variables
 - Override per-folder using `.webnotes` (e.g., different AWS bucket for different projects)
 - UI changes (theme, font) are automatically saved to the file
+
+**Note:** AI credentials have special behavior - if ANY AI key is set in `.webnotes`, ALL AI environment variables are ignored. See [Per-Folder AI Configuration](#per-folder-ai-configuration) for details.
 
 ### Editing .webnotes in the App
 
@@ -221,6 +282,18 @@ The `.webnotes` file appears in the explorer panel with a gear icon. You can cli
 | `youtube_api_key` | string | - | YouTube Data API key |
 | `google_api_key` | string | - | Google API key |
 | `google_cse_id` | string | - | Google Custom Search Engine ID |
+| `ai_provider` | string | auto | AI provider: auto, ollama, openrouter, anthropic, gemini, openai |
+| `ai_model` | string | (per provider) | Override model for any provider |
+| `ollama_api_base` | string | - | Ollama API base URL (e.g., http://localhost:11434) |
+| `ollama_model` | string | llama3.2:latest | Ollama model |
+| `openrouter_api_key` | string | - | OpenRouter API key |
+| `openrouter_model` | string | openai/gpt-4o-mini | OpenRouter model |
+| `anthropic_api_key` | string | - | Anthropic API key |
+| `anthropic_model` | string | claude-sonnet-4-20250514 | Anthropic model |
+| `gemini_api_key` | string | - | Google Gemini API key |
+| `gemini_model` | string | gemini-2.0-flash | Gemini model |
+| `openai_api_key` | string | - | OpenAI API key |
+| `openai_model` | string | gpt-4o-mini | OpenAI model |
 
 ### Environment Variables
 
@@ -288,6 +361,134 @@ google_cse_id = your-custom-search-engine-id
 When not configured, the Google Images tab shows setup instructions with a link to this documentation.
 
 Note: Google Custom Search has a free tier of 100 queries/day.
+
+### Optional: AI Grammar Checking
+
+WebNotes includes an AI-powered grammar and spelling checker. Click the "AI" button in the editor toolbar to check your text. The AI will fix grammar errors, spelling mistakes, typos, and punctuation while preserving your writing style and markdown formatting.
+
+**Supported Providers** (priority order in auto mode):
+1. **OpenAI** - GPT models
+2. **Anthropic** - Claude models
+3. **Google Gemini** - Gemini models
+4. **OpenRouter** - Multiple providers, pay-per-use
+5. **Ollama** - Local, free, private
+
+When multiple providers are configured, WebNotes automatically uses the first available one in the priority order above. You can override this with `ai_provider = <provider>`.
+
+#### Option 1: Ollama (Local, Free, Recommended)
+
+Run AI models locally on your machine with no API costs:
+
+1. Install Ollama from [ollama.com](https://ollama.com)
+2. Pull a model: `ollama pull llama3.2:latest`
+3. Configure in `.webnotes`:
+
+```ini
+ollama_api_base = http://localhost:11434
+ollama_model = llama3.2:latest
+```
+
+**Note for Docker users:** Use `host.docker.internal` instead of `localhost`:
+```ini
+ollama_api_base = http://host.docker.internal:11434
+```
+
+#### Option 2: OpenRouter
+
+Access multiple AI providers through one API:
+
+1. Get an API key from [openrouter.ai](https://openrouter.ai/keys)
+2. Configure in `.webnotes`:
+
+```ini
+openrouter_api_key = sk-or-...
+openrouter_model = openai/gpt-4o-mini
+```
+
+#### Option 3: Anthropic (Claude)
+
+Use Anthropic's Claude models:
+
+1. Get an API key from [console.anthropic.com](https://console.anthropic.com/settings/keys)
+2. Configure in `.webnotes`:
+
+```ini
+anthropic_api_key = sk-ant-...
+anthropic_model = claude-sonnet-4-20250514
+```
+
+#### Option 4: Google Gemini
+
+Use Google's Gemini models:
+
+1. Get an API key from [aistudio.google.com](https://aistudio.google.com/app/apikey)
+2. Configure in `.webnotes`:
+
+```ini
+gemini_api_key = ...
+gemini_model = gemini-2.0-flash
+```
+
+#### Option 5: OpenAI
+
+Use OpenAI's GPT models:
+
+1. Get an API key from [platform.openai.com](https://platform.openai.com/api-keys)
+2. Configure in `.webnotes`:
+
+```ini
+openai_api_key = sk-...
+openai_model = gpt-4o-mini
+```
+
+#### Provider Selection
+
+By default, WebNotes uses the first configured provider in priority order (OpenAI → Anthropic → Gemini → OpenRouter → Ollama). To force a specific provider:
+
+```ini
+ai_provider = anthropic
+```
+
+To override the model for any provider:
+
+```ini
+ai_model = claude-3-opus-20240229
+```
+
+#### Per-Folder AI Configuration
+
+**Important:** If you set ANY AI credential in `.webnotes`, ALL AI-related environment variables are ignored for that folder. This allows per-folder AI configuration that completely overrides your global ENV settings.
+
+For example, if you have `OPENAI_API_KEY` and `OPENROUTER_API_KEY` set as environment variables, but add this to `.webnotes`:
+
+```ini
+anthropic_api_key = sk-ant-your-key
+```
+
+WebNotes will:
+- Use **only** Anthropic (ignoring OpenAI and OpenRouter from ENV)
+- Pick up changes immediately when you save `.webnotes` from the editor
+
+This is useful for:
+- Using different AI providers for different projects
+- Testing new providers without changing your global config
+- Overriding ENV vars set in Docker/shell profiles
+
+#### Default Models
+
+| Provider | Default Model |
+|----------|---------------|
+| Ollama | llama3.2:latest |
+| OpenRouter | openai/gpt-4o-mini |
+| Anthropic | claude-sonnet-4-20250514 |
+| Gemini | gemini-2.0-flash |
+| OpenAI | gpt-4o-mini |
+
+**Usage:**
+- Click the "AI" button in the toolbar while editing a note
+- Review the side-by-side diff showing original and corrected text
+- Edit the corrected text if needed
+- Click "Accept Changes" to apply corrections
 
 ## Keyboard Shortcuts
 
@@ -464,6 +665,7 @@ app/
 │   ├── folders_controller.rb  # Folder management
 │   ├── images_controller.rb   # Image browsing & S3 upload
 │   ├── youtube_controller.rb  # YouTube search API
+│   ├── ai_controller.rb       # AI grammar checking API
 │   └── config_controller.rb   # .webnotes configuration
 ├── models/
 │   ├── note.rb                # Note ActiveModel
@@ -471,7 +673,8 @@ app/
 │   └── config.rb              # Configuration management
 ├── services/
 │   ├── notes_service.rb       # File system operations
-│   └── images_service.rb      # Image handling & S3
+│   ├── images_service.rb      # Image handling & S3
+│   └── ai_service.rb          # AI/LLM integration
 ├── javascript/
 │   └── controllers/
 │       ├── app_controller.js          # Main Stimulus controller

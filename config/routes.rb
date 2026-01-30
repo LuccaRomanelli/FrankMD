@@ -30,6 +30,10 @@ Rails.application.routes.draw do
   get "youtube/config", to: "youtube#config"
   get "youtube/search", to: "youtube#search"
 
+  # AI endpoints
+  get "ai/config", to: "ai#config"
+  post "ai/fix_grammar", to: "ai#fix_grammar"
+
   # Config API
   get "config", to: "config#show"
   patch "config", to: "config#update"

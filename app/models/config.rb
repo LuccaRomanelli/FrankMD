@@ -4,6 +4,7 @@
 # Provides defaults from ENV variables that can be overridden per-folder.
 class Config
   CONFIG_FILE = ".webnotes"
+  CONFIG_VERSION = 2  # Increment when adding new settings
 
   # All configurable options with their defaults and types
   SCHEMA = {
@@ -29,7 +30,21 @@ class Config
 
     # Google Custom Search (ENV defaults)
     "google_api_key" => { default: nil, type: :string, env: "GOOGLE_API_KEY" },
-    "google_cse_id" => { default: nil, type: :string, env: "GOOGLE_CSE_ID" }
+    "google_cse_id" => { default: nil, type: :string, env: "GOOGLE_CSE_ID" },
+
+    # AI/LLM Settings (ENV defaults)
+    "ai_provider" => { default: "auto", type: :string, env: "AI_PROVIDER" },
+    "ai_model" => { default: nil, type: :string, env: "AI_MODEL" },
+    "ollama_api_base" => { default: nil, type: :string, env: "OLLAMA_API_BASE" },
+    "ollama_model" => { default: "llama3.2:latest", type: :string, env: "OLLAMA_MODEL" },
+    "openrouter_api_key" => { default: nil, type: :string, env: "OPENROUTER_API_KEY" },
+    "openrouter_model" => { default: "openai/gpt-4o-mini", type: :string, env: "OPENROUTER_MODEL" },
+    "anthropic_api_key" => { default: nil, type: :string, env: "ANTHROPIC_API_KEY" },
+    "anthropic_model" => { default: "claude-sonnet-4-20250514", type: :string, env: "ANTHROPIC_MODEL" },
+    "gemini_api_key" => { default: nil, type: :string, env: "GEMINI_API_KEY" },
+    "gemini_model" => { default: "gemini-2.0-flash", type: :string, env: "GEMINI_MODEL" },
+    "openai_api_key" => { default: nil, type: :string, env: "OPENAI_API_KEY" },
+    "openai_model" => { default: "gpt-4o-mini", type: :string, env: "OPENAI_MODEL" }
   }.freeze
 
   # Keys that should not be exposed to the frontend (sensitive)
@@ -38,6 +53,10 @@ class Config
     aws_secret_access_key
     youtube_api_key
     google_api_key
+    openai_api_key
+    openrouter_api_key
+    anthropic_api_key
+    gemini_api_key
   ].freeze
 
   # Keys that are UI settings (saved from frontend)
@@ -48,6 +67,124 @@ class Config
     preview_zoom
     sidebar_visible
     typewriter_mode
+  ].freeze
+
+  # AI provider priority (default order when ai_provider = "auto")
+  # OpenAI first as most reliable, then cloud providers, then local
+  AI_PROVIDER_PRIORITY = %w[openai anthropic gemini openrouter ollama].freeze
+
+  # AI credential keys - if ANY of these are set in .webnotes, ignore ALL AI ENV vars
+  # This allows users to override their global ENV config per-folder
+  # Only includes actual credentials/endpoints, not settings like ai_provider or models
+  AI_CREDENTIAL_KEYS = %w[
+    ollama_api_base
+    openrouter_api_key
+    anthropic_api_key
+    gemini_api_key
+    openai_api_key
+  ].freeze
+
+  # Template sections for config file (used for upgrades)
+  TEMPLATE_SECTIONS = [
+    {
+      marker: "# WebNotes Configuration",
+      lines: [
+        "# WebNotes Configuration",
+        "# Uncomment and modify values as needed.",
+        "# Environment variables are used as defaults if not specified here."
+      ]
+    },
+    {
+      marker: "# UI Settings",
+      lines: [
+        "",
+        "# UI Settings",
+        "",
+        "# Theme: light, dark, gruvbox, tokyo-night, solarized-dark,",
+        "#        solarized-light, nord, cappuccino, osaka, hackerman",
+        "# theme = dark",
+        "",
+        "# Editor font: cascadia-code, jetbrains-mono, fira-code,",
+        "#              source-code-pro, ubuntu-mono, roboto-mono, hack",
+        "# editor_font = cascadia-code",
+        "",
+        "# editor_font_size = 14",
+        "# preview_zoom = 100",
+        "# sidebar_visible = true",
+        "# typewriter_mode = false"
+      ]
+    },
+    {
+      marker: "# Local Images",
+      lines: [
+        "",
+        "# Local Images",
+        "",
+        "# images_path = /path/to/images"
+      ]
+    },
+    {
+      marker: "# AWS S3",
+      lines: [
+        "",
+        "# AWS S3 (for image uploads)",
+        "",
+        "# aws_access_key_id = your-access-key",
+        "# aws_secret_access_key = your-secret-key",
+        "# aws_s3_bucket = your-bucket-name",
+        "# aws_region = us-east-1"
+      ]
+    },
+    {
+      marker: "# YouTube API",
+      lines: [
+        "",
+        "# YouTube API (for video search)",
+        "",
+        "# youtube_api_key = your-youtube-api-key"
+      ]
+    },
+    {
+      marker: "# Google Custom Search",
+      lines: [
+        "",
+        "# Google Custom Search (for image search)",
+        "",
+        "# google_api_key = your-google-api-key",
+        "# google_cse_id = your-custom-search-engine-id"
+      ]
+    },
+    {
+      marker: "# AI/LLM",
+      lines: [
+        "",
+        "# AI/LLM (for grammar checking)",
+        "# Provider priority when ai_provider = auto: openai > anthropic > gemini > openrouter > ollama",
+        "",
+        "# ai_provider = auto",
+        "# ai_model = (uses provider-specific default if not set)",
+        "",
+        "# OpenAI (recommended)",
+        "# openai_api_key = sk-...",
+        "# openai_model = gpt-4o-mini",
+        "",
+        "# Anthropic (Claude models)",
+        "# anthropic_api_key = sk-ant-...",
+        "# anthropic_model = claude-sonnet-4-20250514",
+        "",
+        "# Google Gemini",
+        "# gemini_api_key = ...",
+        "# gemini_model = gemini-2.0-flash",
+        "",
+        "# OpenRouter (multiple providers, pay-per-use)",
+        "# openrouter_api_key = sk-or-...",
+        "# openrouter_model = openai/gpt-4o-mini",
+        "",
+        "# Ollama (local, free) - for privacy, requires local setup",
+        "# ollama_api_base = http://localhost:11434",
+        "# ollama_model = llama3.2:latest"
+      ]
+    }
   ].freeze
 
   attr_reader :base_path, :values
@@ -134,9 +271,78 @@ class Config
       get("google_api_key").present? && get("google_cse_id").present?
     when "local_images"
       get("images_path").present?
+    when "ai"
+      ai_providers_available.any?
     else
       false
     end
+  end
+
+  # Check if any AI credential is explicitly set in the .webnotes file
+  # When true, we ignore ALL AI-related ENV vars for credentials
+  # This allows per-folder AI config that overrides global ENV settings
+  def ai_configured_in_file?
+    AI_CREDENTIAL_KEYS.any? { |key| @values.key?(key) }
+  end
+
+  # Get an AI-related config value
+  # If ANY AI key is in .webnotes, use ONLY file values (ignore ENV)
+  # This allows users to override their ENV-based config per-folder
+  def get_ai(key)
+    key = key.to_s
+    return nil unless SCHEMA.key?(key)
+
+    if ai_configured_in_file?
+      # File-only mode: ignore ENV vars for AI
+      if @values.key?(key)
+        @values[key]
+      else
+        SCHEMA[key][:default]
+      end
+    else
+      # Normal mode: file > ENV > default
+      get(key)
+    end
+  end
+
+  # Get list of available AI providers (those with credentials configured)
+  def ai_providers_available
+    available = []
+    available << "ollama" if get_ai("ollama_api_base").present?
+    available << "openrouter" if get_ai("openrouter_api_key").present?
+    available << "anthropic" if get_ai("anthropic_api_key").present?
+    available << "gemini" if get_ai("gemini_api_key").present?
+    available << "openai" if get_ai("openai_api_key").present?
+    available
+  end
+
+  # Get the effective AI provider based on priority
+  def effective_ai_provider
+    available = ai_providers_available
+    return nil if available.empty?
+
+    configured_provider = get_ai("ai_provider")
+
+    # If a specific provider is configured and available, use it
+    if configured_provider.present? && configured_provider != "auto" && available.include?(configured_provider)
+      return configured_provider
+    end
+
+    # Auto mode: use priority order
+    AI_PROVIDER_PRIORITY.find { |p| available.include?(p) }
+  end
+
+  # Get the effective model for the current AI provider
+  def effective_ai_model
+    provider = effective_ai_provider
+    return nil unless provider
+
+    # Check for global ai_model override first
+    global_model = get_ai("ai_model")
+    return global_model if global_model.present?
+
+    # Use provider-specific model
+    get_ai("#{provider}_model")
   end
 
   # Get the effective value for a setting (used by services)
@@ -144,10 +350,13 @@ class Config
     get(key)
   end
 
-  # Ensure config file exists with template
+  # Ensure config file exists and is up to date
   def ensure_config_file
-    return if config_file_path.exist?
-    create_template_config
+    if config_file_path.exist?
+      upgrade_config_file
+    else
+      create_template_config
+    end
   end
 
   def config_file_path
@@ -293,47 +502,44 @@ class Config
     Rails.logger.warn("Failed to create .webnotes template: #{e.message}")
   end
 
+  # Upgrade existing config file by adding NEW sections only
+  # This is conservative: only adds sections for new features (like AI/LLM)
+  # It does NOT re-add sections the user may have intentionally removed
+  def upgrade_config_file
+    return unless config_file_path.exist?
+
+    content = config_file_path.read
+    existing_lines = content.lines.map(&:chomp)
+
+    # Only upgrade with truly new sections - currently just AI/LLM
+    # We check for any AI-related key to determine if the section exists
+    ai_keys = %w[ai_provider ai_model ollama_api_base ollama_model
+                 openrouter_api_key openrouter_model anthropic_api_key anthropic_model
+                 gemini_api_key gemini_model openai_api_key openai_model]
+
+    ai_section_present = existing_lines.any? do |line|
+      line.include?("# AI/LLM") ||
+        ai_keys.any? { |key| line =~ /^#?\s*#{key}\s*=/i }
+    end
+
+    return if ai_section_present
+
+    # Add AI section at the end
+    ai_section = TEMPLATE_SECTIONS.find { |s| s[:marker] == "# AI/LLM" }
+    return unless ai_section
+
+    new_lines = existing_lines.dup
+    new_lines << "" if new_lines.last&.strip&.present?
+    new_lines.concat(ai_section[:lines])
+
+    config_file_path.write(new_lines.join("\n") + "\n")
+    Rails.logger.info("Upgraded .webnotes config with AI/LLM section")
+  rescue => e
+    Rails.logger.warn("Failed to upgrade .webnotes config: #{e.message}")
+  end
+
   def generate_template_lines
-    [
-      "# WebNotes Configuration",
-      "# Uncomment and modify values as needed.",
-      "# Environment variables are used as defaults if not specified here.",
-      "",
-      "# UI Settings",
-      "",
-      "# Theme: light, dark, gruvbox, tokyo-night, solarized-dark,",
-      "#        solarized-light, nord, cappuccino, osaka, hackerman",
-      "# theme = dark",
-      "",
-      "# Editor font: cascadia-code, jetbrains-mono, fira-code,",
-      "#              source-code-pro, ubuntu-mono, roboto-mono, hack",
-      "# editor_font = cascadia-code",
-      "",
-      "# editor_font_size = 14",
-      "# preview_zoom = 100",
-      "# sidebar_visible = true",
-      "# typewriter_mode = false",
-      "",
-      "# Local Images",
-      "",
-      "# images_path = /path/to/images",
-      "",
-      "# AWS S3 (for image uploads)",
-      "",
-      "# aws_access_key_id = your-access-key",
-      "# aws_secret_access_key = your-secret-key",
-      "# aws_s3_bucket = your-bucket-name",
-      "# aws_region = us-east-1",
-      "",
-      "# YouTube API (for video search)",
-      "",
-      "# youtube_api_key = your-youtube-api-key",
-      "",
-      "# Google Custom Search (for image search)",
-      "",
-      "# google_api_key = your-google-api-key",
-      "# google_cse_id = your-custom-search-engine-id"
-    ]
+    TEMPLATE_SECTIONS.flat_map { |section| section[:lines] }
   end
 
   def generate_config_lines
