@@ -55,4 +55,26 @@
   >
     <!-- Tree will be rendered by JavaScript -->
   </div>
+
+  <!-- Document Stats Panel -->
+  <div class="flex-none border-t border-[var(--theme-border)] px-3 py-2 hidden" data-app-target="statsPanel">
+    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+      <div class="flex justify-between">
+        <span class="text-[var(--theme-text-muted)]">Words</span>
+        <span class="text-[var(--theme-text-secondary)] font-medium" data-app-target="statsWords">0</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-[var(--theme-text-muted)]">Characters</span>
+        <span class="text-[var(--theme-text-secondary)] font-medium" data-app-target="statsChars">0</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-[var(--theme-text-muted)]">Size</span>
+        <span class="text-[var(--theme-text-secondary)] font-medium" data-app-target="statsSize">0 B</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-[var(--theme-text-muted)]">Read time</span>
+        <span class="text-[var(--theme-text-secondary)] font-medium" data-app-target="statsReadTime">0 min</span>
+      </div>
+    </div>
+  </div>
 </aside>

@@ -146,7 +146,12 @@ export default class extends Controller {
     "aiProviderBadge",
     "aiEditToggle",
     "aiProcessingOverlay",
-    "aiProcessingProvider"
+    "aiProcessingProvider",
+    "statsPanel",
+    "statsWords",
+    "statsChars",
+    "statsSize",
+    "statsReadTime"
   ]
 
   static values = {
@@ -230,6 +235,9 @@ export default class extends Controller {
 
     // Track pending config saves to debounce
     this.configSaveTimeout = null
+
+    // Document stats update timeout (debounced)
+    this.statsUpdateTimeout = null
 
     // File finder state
     this.allFiles = []
@@ -371,6 +379,7 @@ export default class extends Controller {
         this.editorTarget.classList.add("hidden")
         this.editorToolbarTarget.classList.add("hidden")
         this.editorToolbarTarget.classList.remove("flex")
+        this.hideStatsPanel()
         this.renderTree()
       }
     })
@@ -406,6 +415,7 @@ export default class extends Controller {
       this.currentPathTarget.textContent = "Select or create a note"
       this.editorPlaceholderTarget.classList.remove("hidden")
       this.editorTarget.classList.add("hidden")
+      this.hideStatsPanel()
     }, 5000)
   }
 
@@ -733,6 +743,10 @@ export default class extends Controller {
         document.body.classList.remove("preview-visible")
       }
     }
+
+    // Show stats panel and update stats
+    this.showStatsPanel()
+    this.updateStats()
   }
 
   // Check if current file is markdown
@@ -750,6 +764,7 @@ export default class extends Controller {
 
   onTextareaInput() {
     this.scheduleAutoSave()
+    this.scheduleStatsUpdate()
 
     // Only do markdown-specific processing for markdown files
     if (this.isMarkdownFile()) {
@@ -4597,6 +4612,7 @@ tags:
         this.currentPathTarget.textContent = "Select or create a note"
         this.editorPlaceholderTarget.classList.remove("hidden")
         this.editorTarget.classList.add("hidden")
+        this.hideStatsPanel()
       }
 
       await this.refreshTree()
@@ -4771,5 +4787,74 @@ tags:
     dialog.style.left = ""
     dialog.style.top = ""
     dialog.showModal()
+  }
+
+  // === Document Stats ===
+
+  showStatsPanel() {
+    if (this.hasStatsPanelTarget) {
+      this.statsPanelTarget.classList.remove("hidden")
+    }
+  }
+
+  hideStatsPanel() {
+    if (this.hasStatsPanelTarget) {
+      this.statsPanelTarget.classList.add("hidden")
+    }
+  }
+
+  scheduleStatsUpdate() {
+    // Debounce stats update to avoid slowing down typing
+    if (this.statsUpdateTimeout) {
+      clearTimeout(this.statsUpdateTimeout)
+    }
+    this.statsUpdateTimeout = setTimeout(() => this.updateStats(), 500)
+  }
+
+  updateStats() {
+    if (!this.hasTextareaTarget || !this.hasStatsPanelTarget) return
+
+    const text = this.textareaTarget.value
+
+    // Word count - split on whitespace and filter empty strings
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0)
+    const wordCount = words.length
+
+    // Character count
+    const charCount = text.length
+
+    // File size (bytes -> human readable)
+    const byteSize = new Blob([text]).size
+    const sizeStr = this.formatFileSize(byteSize)
+
+    // Estimated reading time (average 200-250 words per minute)
+    const wordsPerMinute = 200
+    const readTimeMinutes = Math.ceil(wordCount / wordsPerMinute)
+    const readTimeStr = readTimeMinutes <= 1 ? "< 1 min" : `${readTimeMinutes} min`
+
+    // Update display
+    if (this.hasStatsWordsTarget) {
+      this.statsWordsTarget.textContent = wordCount.toLocaleString()
+    }
+    if (this.hasStatsCharsTarget) {
+      this.statsCharsTarget.textContent = charCount.toLocaleString()
+    }
+    if (this.hasStatsSizeTarget) {
+      this.statsSizeTarget.textContent = sizeStr
+    }
+    if (this.hasStatsReadTimeTarget) {
+      this.statsReadTimeTarget.textContent = readTimeStr
+    }
+  }
+
+  formatFileSize(bytes) {
+    if (bytes === 0) return "0 B"
+    const units = ["B", "KB", "MB", "GB"]
+    const k = 1024
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    const size = bytes / Math.pow(k, i)
+    // Show decimal only for KB and above, and only if meaningful
+    if (i === 0) return `${bytes} B`
+    return `${size.toFixed(size < 10 ? 1 : 0)} ${units[i]}`
   }
 }
