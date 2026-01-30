@@ -1978,42 +1978,69 @@ export default class extends Controller {
     if (!this.typewriterModeEnabled) return
     if (!this.hasTextareaTarget) return
 
-    // Use requestAnimationFrame to run after browser's default scroll behavior
-    requestAnimationFrame(() => {
-      const textarea = this.textareaTarget
-      const text = textarea.value
-      const cursorPos = textarea.selectionStart
+    const textarea = this.textareaTarget
+    const text = textarea.value
+    const cursorPos = textarea.selectionStart
 
-      // Calculate which line the cursor is on
-      const textBeforeCursor = text.substring(0, cursorPos)
-      const linesBefore = textBeforeCursor.split("\n").length
+    // Use mirror div technique to get accurate cursor position
+    const cursorY = this.getCursorYPosition(textarea, cursorPos)
 
-      // Get line height from computed style
-      const style = window.getComputedStyle(textarea)
-      const fontSize = parseFloat(style.fontSize) || 14
-      // lineHeight might be "normal" which parseFloat returns NaN
-      let lineHeight = parseFloat(style.lineHeight)
-      if (isNaN(lineHeight)) {
-        lineHeight = fontSize * 1.5
-      }
+    // Target position: 50% from top of visible area (center)
+    const targetY = textarea.clientHeight * 0.5
 
-      // Calculate cursor's vertical position (in pixels from top of content)
-      const cursorY = (linesBefore - 1) * lineHeight
+    // Calculate desired scroll position to put cursor at target
+    const desiredScrollTop = cursorY - targetY
 
-      // Target position: 50% from top of visible area (center)
-      const targetY = textarea.clientHeight * 0.5
-
-      // Calculate desired scroll position to put cursor at target
-      const desiredScrollTop = cursorY - targetY
-
-      // Always apply scroll to keep cursor centered
+    // Use setTimeout to ensure we run after all browser scroll behavior
+    setTimeout(() => {
       textarea.scrollTop = Math.max(0, desiredScrollTop)
 
       // Also sync preview if visible
+      const linesBefore = text.substring(0, cursorPos).split("\n").length
       if (!this.previewPanelTarget.classList.contains("hidden")) {
         this.syncPreviewToTypewriter(linesBefore, text.split("\n").length)
       }
-    })
+    }, 0)
+  }
+
+  // Get cursor Y position using mirror div technique
+  getCursorYPosition(textarea, cursorPos) {
+    // Create a mirror div that matches the textarea's styling
+    const mirror = document.createElement("div")
+    const style = window.getComputedStyle(textarea)
+
+    // Copy relevant styles
+    mirror.style.cssText = `
+      position: absolute;
+      top: -9999px;
+      left: -9999px;
+      width: ${textarea.clientWidth}px;
+      height: auto;
+      font-family: ${style.fontFamily};
+      font-size: ${style.fontSize};
+      font-weight: ${style.fontWeight};
+      line-height: ${style.lineHeight};
+      padding: ${style.padding};
+      border: ${style.border};
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    `
+
+    // Get text before cursor and add a marker span
+    const textBefore = textarea.value.substring(0, cursorPos)
+    mirror.textContent = textBefore
+
+    // Add a marker element at cursor position
+    const marker = document.createElement("span")
+    marker.textContent = "|"
+    mirror.appendChild(marker)
+
+    document.body.appendChild(mirror)
+    const cursorY = marker.offsetTop
+    document.body.removeChild(mirror)
+
+    return cursorY
   }
 
   // Sync preview scroll in typewriter mode
