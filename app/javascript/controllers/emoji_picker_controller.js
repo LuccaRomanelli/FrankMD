@@ -920,6 +920,47 @@ export default class extends Controller {
     this.onInput() // Re-apply search filter
   }
 
+  // Handle arrow key navigation on tab buttons
+  onTabKeydown(event) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
+
+    event.preventDefault()
+    const tabs = ["emoji", "emoticons"]
+    const currentIndex = tabs.indexOf(this.activeTab)
+
+    let newIndex
+    if (event.key === "ArrowRight") {
+      newIndex = (currentIndex + 1) % tabs.length
+    } else {
+      newIndex = (currentIndex - 1 + tabs.length) % tabs.length
+    }
+
+    if (tabs[newIndex] === "emoji") {
+      this.switchToEmoji()
+      this.tabEmojiTarget.focus()
+    } else {
+      this.switchToEmoticons()
+      this.tabEmoticonsTarget.focus()
+    }
+  }
+
+  // Handle mouse wheel on tab bar to switch tabs
+  onTabWheel(event) {
+    event.preventDefault()
+
+    if (event.deltaY > 0 || event.deltaX > 0) {
+      // Scroll down/right -> next tab
+      if (this.activeTab === "emoji") {
+        this.switchToEmoticons()
+      }
+    } else {
+      // Scroll up/left -> previous tab
+      if (this.activeTab === "emoticons") {
+        this.switchToEmoji()
+      }
+    }
+  }
+
   // Update tab button styles
   updateTabStyles() {
     const activeClass = "bg-[var(--theme-accent)] text-[var(--theme-accent-text)]"
@@ -1120,17 +1161,7 @@ export default class extends Controller {
         this.updatePreview()
         break
 
-      case "Tab":
-        // Switch tabs with Tab key (without Shift)
-        if (!event.shiftKey) {
-          event.preventDefault()
-          if (this.activeTab === "emoji") {
-            this.switchToEmoticons()
-          } else {
-            this.switchToEmoji()
-          }
-        }
-        break
+      // Tab key now works normally (moves focus)
 
       case "Enter":
         event.preventDefault()

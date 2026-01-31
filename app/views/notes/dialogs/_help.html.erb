@@ -1,6 +1,6 @@
 <!-- Help and About Dialogs - managed by help controller -->
 <div data-controller="help">
-  <!-- Help Dialog (Markdown Cheatsheet) -->
+  <!-- Help Dialog (Markdown Cheatsheet & Keyboard Shortcuts) -->
   <dialog
     class="p-0 rounded-lg shadow-xl backdrop:bg-black/50 bg-[var(--theme-bg-secondary)] border border-[var(--theme-border)] max-w-4xl w-full max-h-[85vh]"
     data-help-target="helpDialog"
@@ -23,136 +23,294 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-4">
-        <!-- Column 1 -->
-        <div class="space-y-3">
-          <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
-            <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.headings') %></h4>
-            <div class="grid grid-cols-2 gap-2 text-sm">
-              <code class="font-mono text-[var(--theme-text-secondary)]"># Heading 1</code>
-              <span class="text-xl font-bold">Heading 1</span>
-              <code class="font-mono text-[var(--theme-text-secondary)]">## Heading 2</code>
-              <span class="text-lg font-bold">Heading 2</span>
-              <code class="font-mono text-[var(--theme-text-secondary)]">### Heading 3</code>
-              <span class="text-base font-bold">Heading 3</span>
+      <!-- Tab buttons -->
+      <div class="flex gap-1 mb-4" role="tablist" data-action="wheel->help#onTabWheel">
+        <button
+          type="button"
+          role="tab"
+          data-help-target="tabMarkdown"
+          data-tab="markdown"
+          data-action="click->help#switchTab keydown->help#onTabKeydown"
+          class="px-3 py-1 text-sm rounded-md bg-[var(--theme-accent)] text-[var(--theme-accent-text)]"
+        ><%= t('dialogs.help.tab_markdown') %></button>
+        <button
+          type="button"
+          role="tab"
+          data-help-target="tabShortcuts"
+          data-tab="shortcuts"
+          data-action="click->help#switchTab keydown->help#onTabKeydown"
+          class="px-3 py-1 text-sm rounded-md hover:bg-[var(--theme-bg-hover)] text-[var(--theme-text-muted)]"
+        ><%= t('dialogs.help.tab_shortcuts') %></button>
+      </div>
+
+      <!-- Markdown Cheatsheet Panel -->
+      <div data-help-target="panelMarkdown">
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Column 1 -->
+          <div class="space-y-3">
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.headings') %></h4>
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <code class="font-mono text-[var(--theme-text-secondary)]"># Heading 1</code>
+                <span class="text-xl font-bold">Heading 1</span>
+                <code class="font-mono text-[var(--theme-text-secondary)]">## Heading 2</code>
+                <span class="text-lg font-bold">Heading 2</span>
+                <code class="font-mono text-[var(--theme-text-secondary)]">### Heading 3</code>
+                <span class="text-base font-bold">Heading 3</span>
+              </div>
+            </div>
+
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.emphasis') %></h4>
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <code class="font-mono text-[var(--theme-text-secondary)]">**bold**</code>
+                <span class="font-bold">bold</span>
+                <code class="font-mono text-[var(--theme-text-secondary)]">*italic*</code>
+                <span class="italic">italic</span>
+                <code class="font-mono text-[var(--theme-text-secondary)]">~~strikethrough~~</code>
+                <span class="line-through">strikethrough</span>
+                <code class="font-mono text-[var(--theme-text-secondary)]">`inline code`</code>
+                <code class="bg-[var(--theme-code-bg)] px-1 rounded text-sm">inline code</code>
+              </div>
+            </div>
+
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.lists') %></h4>
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <div class="font-mono text-[var(--theme-text-secondary)]">
+                  <div>- Item 1</div>
+                  <div>- Item 2</div>
+                </div>
+                <div>
+                  <div>&bull; Item 1</div>
+                  <div>&bull; Item 2</div>
+                </div>
+                <div class="font-mono text-[var(--theme-text-secondary)]">
+                  <div>1. First</div>
+                  <div>2. Second</div>
+                </div>
+                <div>
+                  <div>1. First</div>
+                  <div>2. Second</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.task_list') %></h4>
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <div class="font-mono text-[var(--theme-text-secondary)]">
+                  <div>- [x] Done</div>
+                  <div>- [ ] Todo</div>
+                </div>
+                <div>
+                  <div><input type="checkbox" checked disabled class="mr-1">Done</div>
+                  <div><input type="checkbox" disabled class="mr-1">Todo</div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
-            <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.emphasis') %></h4>
-            <div class="grid grid-cols-2 gap-2 text-sm">
-              <code class="font-mono text-[var(--theme-text-secondary)]">**bold**</code>
-              <span class="font-bold">bold</span>
-              <code class="font-mono text-[var(--theme-text-secondary)]">*italic*</code>
-              <span class="italic">italic</span>
-              <code class="font-mono text-[var(--theme-text-secondary)]">~~strikethrough~~</code>
-              <span class="line-through">strikethrough</span>
-              <code class="font-mono text-[var(--theme-text-secondary)]">`inline code`</code>
-              <code class="bg-[var(--theme-code-bg)] px-1 rounded text-sm">inline code</code>
-            </div>
-          </div>
-
-          <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
-            <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.lists') %></h4>
-            <div class="grid grid-cols-2 gap-2 text-sm">
-              <div class="font-mono text-[var(--theme-text-secondary)]">
-                <div>- Item 1</div>
-                <div>- Item 2</div>
-              </div>
-              <div>
-                <div>&bull; Item 1</div>
-                <div>&bull; Item 2</div>
-              </div>
-              <div class="font-mono text-[var(--theme-text-secondary)]">
-                <div>1. First</div>
-                <div>2. Second</div>
-              </div>
-              <div>
-                <div>1. First</div>
-                <div>2. Second</div>
+          <!-- Column 2 -->
+          <div class="space-y-3">
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.links_images') %></h4>
+              <div class="space-y-2 text-sm">
+                <div class="grid grid-cols-2 gap-2">
+                  <code class="font-mono text-[var(--theme-text-secondary)]">[text](url)</code>
+                  <a href="#" class="text-[var(--theme-accent)] underline">text</a>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <code class="font-mono text-[var(--theme-text-secondary)]">![alt](image.jpg)</code>
+                  <span class="text-[var(--theme-text-muted)]">[image]</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
-            <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.task_list') %></h4>
-            <div class="grid grid-cols-2 gap-2 text-sm">
-              <div class="font-mono text-[var(--theme-text-secondary)]">
-                <div>- [x] Done</div>
-                <div>- [ ] Todo</div>
-              </div>
-              <div>
-                <div><input type="checkbox" checked disabled class="mr-1">Done</div>
-                <div><input type="checkbox" disabled class="mr-1">Todo</div>
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.blockquote') %></h4>
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <code class="font-mono text-[var(--theme-text-secondary)]">> Quote text</code>
+                <blockquote class="border-l-2 border-[var(--theme-accent)] pl-2 italic text-[var(--theme-text-muted)]">Quote text</blockquote>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Column 2 -->
-        <div class="space-y-3">
-          <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
-            <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.links_images') %></h4>
-            <div class="space-y-2 text-sm">
-              <div class="grid grid-cols-2 gap-2">
-                <code class="font-mono text-[var(--theme-text-secondary)]">[text](url)</code>
-                <a href="#" class="text-[var(--theme-accent)] underline">text</a>
-              </div>
-              <div class="grid grid-cols-2 gap-2">
-                <code class="font-mono text-[var(--theme-text-secondary)]">![alt](image.jpg)</code>
-                <span class="text-[var(--theme-text-muted)]">[image]</span>
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.code_block') %></h4>
+              <div class="text-sm space-y-1">
+                <div class="font-mono text-[var(--theme-text-secondary)]">
+                  <div>```javascript</div>
+                  <div>const x = 1;</div>
+                  <div>```</div>
+                </div>
+                <pre class="bg-[var(--theme-code-bg)] p-2 rounded text-xs"><code>const x = 1;</code></pre>
               </div>
             </div>
-          </div>
 
-          <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
-            <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.blockquote') %></h4>
-            <div class="grid grid-cols-2 gap-2 text-sm">
-              <code class="font-mono text-[var(--theme-text-secondary)]">> Quote text</code>
-              <blockquote class="border-l-2 border-[var(--theme-accent)] pl-2 italic text-[var(--theme-text-muted)]">Quote text</blockquote>
-            </div>
-          </div>
-
-          <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
-            <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.code_block') %></h4>
-            <div class="text-sm space-y-1">
-              <div class="font-mono text-[var(--theme-text-secondary)]">
-                <div>```javascript</div>
-                <div>const x = 1;</div>
-                <div>```</div>
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.table') %></h4>
+              <div class="text-sm space-y-1">
+                <div class="font-mono text-[var(--theme-text-secondary)] text-xs">
+                  <div>| Col 1 | Col 2 |</div>
+                  <div>| ----- | ----- |</div>
+                  <div>| A     | B     |</div>
+                </div>
+                <table class="text-xs border-collapse">
+                  <tr><th class="border border-[var(--theme-border)] px-2">Col 1</th><th class="border border-[var(--theme-border)] px-2">Col 2</th></tr>
+                  <tr><td class="border border-[var(--theme-border)] px-2">A</td><td class="border border-[var(--theme-border)] px-2">B</td></tr>
+                </table>
               </div>
-              <pre class="bg-[var(--theme-code-bg)] p-2 rounded text-xs"><code>const x = 1;</code></pre>
             </div>
-          </div>
 
-          <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
-            <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.table') %></h4>
-            <div class="text-sm space-y-1">
-              <div class="font-mono text-[var(--theme-text-secondary)] text-xs">
-                <div>| Col 1 | Col 2 |</div>
-                <div>| ----- | ----- |</div>
-                <div>| A     | B     |</div>
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.horizontal_rule') %></h4>
+              <div class="grid grid-cols-2 gap-2 text-sm items-center">
+                <code class="font-mono text-[var(--theme-text-secondary)]">---</code>
+                <hr class="border-[var(--theme-border)]">
               </div>
-              <table class="text-xs border-collapse">
-                <tr><th class="border border-[var(--theme-border)] px-2">Col 1</th><th class="border border-[var(--theme-border)] px-2">Col 2</th></tr>
-                <tr><td class="border border-[var(--theme-border)] px-2">A</td><td class="border border-[var(--theme-border)] px-2">B</td></tr>
-              </table>
-            </div>
-          </div>
-
-          <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
-            <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.horizontal_rule') %></h4>
-            <div class="grid grid-cols-2 gap-2 text-sm items-center">
-              <code class="font-mono text-[var(--theme-text-secondary)]">---</code>
-              <hr class="border-[var(--theme-border)]">
             </div>
           </div>
         </div>
       </div>
 
-      <div class="mt-4 pt-3 border-t border-[var(--theme-border)] text-xs text-[var(--theme-text-muted)] text-center">
-        <span class="font-semibold"><%= t('dialogs.help.keyboard_shortcuts') %></span>
-        <%= t('dialogs.help.shortcuts_list') %>
+      <!-- Keyboard Shortcuts Panel -->
+      <div data-help-target="panelShortcuts" class="hidden">
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Column 1 -->
+          <div class="space-y-3">
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.shortcuts.file_operations') %></h4>
+              <div class="space-y-1.5 text-sm">
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Ctrl+S</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.save') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Ctrl+N</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.new_note') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Ctrl+P</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.file_finder') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Ctrl+Shift+F</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.search_files') %></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.shortcuts.editor') %></h4>
+              <div class="space-y-1.5 text-sm">
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Ctrl+E</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.toggle_sidebar') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Ctrl+Shift+P</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.toggle_preview') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Ctrl+B</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.typewriter_mode') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Tab</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.indent') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Shift+Tab</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.unindent') %></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.shortcuts.insert') %></h4>
+              <div class="space-y-1.5 text-sm">
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Ctrl+Shift+E</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.emoji_picker') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Ctrl+M</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.format_menu') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-xs text-[var(--theme-text-muted)]"><%= t('dialogs.help.shortcuts.context_menu') %></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Column 2 -->
+          <div class="space-y-3">
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.shortcuts.text_format') %></h4>
+              <div class="space-y-1.5 text-sm">
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">B</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.bold') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">I</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.italic') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">S</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.strikethrough') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">H</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.highlight') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">U</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.subscript') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">P</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.superscript') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">L</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.link') %></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-[var(--theme-bg-tertiary)] rounded-lg p-3">
+              <h4 class="text-xs font-semibold text-[var(--theme-text-muted)] uppercase mb-2"><%= t('dialogs.help.shortcuts.dialogs') %></h4>
+              <div class="space-y-1.5 text-sm">
+                <div class="flex justify-between">
+                  <div>
+                    <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Ctrl+H</kbd>
+                    <span class="text-[var(--theme-text-muted)] mx-1">/</span>
+                    <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">F1</kbd>
+                  </div>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.help') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Escape</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.close_dialog') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">←/→</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.switch_tabs') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">↑/↓/←/→</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.navigate_items') %></span>
+                </div>
+                <div class="flex justify-between">
+                  <kbd class="px-1.5 py-0.5 text-xs font-mono bg-[var(--theme-bg-primary)] rounded border border-[var(--theme-border)]">Enter</kbd>
+                  <span class="text-[var(--theme-text-secondary)]"><%= t('dialogs.help.shortcuts.select_confirm') %></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </dialog>

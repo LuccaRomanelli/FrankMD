@@ -336,36 +336,74 @@ describe("EmojiPickerController", () => {
       })
     })
 
-    describe("Tab", () => {
-      it("switches from emoji to emoticons tab", () => {
+    describe("Tab key", () => {
+      it("does not prevent default - allows normal tab navigation", () => {
         controller.activeTab = "emoji"
         const event = new KeyboardEvent("keydown", { key: "Tab" })
         event.preventDefault = vi.fn()
         controller.onKeydown(event)
 
-        expect(event.preventDefault).toHaveBeenCalled()
-        expect(controller.activeTab).toBe("emoticons")
-      })
-
-      it("switches from emoticons to emoji tab", () => {
-        controller.activeTab = "emoticons"
-        const event = new KeyboardEvent("keydown", { key: "Tab" })
-        event.preventDefault = vi.fn()
-        controller.onKeydown(event)
-
-        expect(event.preventDefault).toHaveBeenCalled()
-        expect(controller.activeTab).toBe("emoji")
-      })
-
-      it("does not switch tabs with Shift+Tab", () => {
-        controller.activeTab = "emoji"
-        const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true })
-        event.preventDefault = vi.fn()
-        controller.onKeydown(event)
-
+        // Tab key should NOT prevent default - it works normally for focus
         expect(event.preventDefault).not.toHaveBeenCalled()
+        // Tab should NOT change the active tab - arrow keys do that now
         expect(controller.activeTab).toBe("emoji")
       })
+    })
+  })
+
+  describe("onTabKeydown() - arrow key tab navigation", () => {
+    beforeEach(() => {
+      controller.open()
+    })
+
+    it("switches from emoji to emoticons with ArrowRight", () => {
+      controller.activeTab = "emoji"
+      const event = new KeyboardEvent("keydown", { key: "ArrowRight" })
+      event.preventDefault = vi.fn()
+      controller.onTabKeydown(event)
+
+      expect(event.preventDefault).toHaveBeenCalled()
+      expect(controller.activeTab).toBe("emoticons")
+    })
+
+    it("switches from emoticons to emoji with ArrowRight (wrap)", () => {
+      controller.activeTab = "emoticons"
+      const event = new KeyboardEvent("keydown", { key: "ArrowRight" })
+      event.preventDefault = vi.fn()
+      controller.onTabKeydown(event)
+
+      expect(event.preventDefault).toHaveBeenCalled()
+      expect(controller.activeTab).toBe("emoji")
+    })
+
+    it("switches from emoticons to emoji with ArrowLeft", () => {
+      controller.activeTab = "emoticons"
+      const event = new KeyboardEvent("keydown", { key: "ArrowLeft" })
+      event.preventDefault = vi.fn()
+      controller.onTabKeydown(event)
+
+      expect(event.preventDefault).toHaveBeenCalled()
+      expect(controller.activeTab).toBe("emoji")
+    })
+
+    it("switches from emoji to emoticons with ArrowLeft (wrap)", () => {
+      controller.activeTab = "emoji"
+      const event = new KeyboardEvent("keydown", { key: "ArrowLeft" })
+      event.preventDefault = vi.fn()
+      controller.onTabKeydown(event)
+
+      expect(event.preventDefault).toHaveBeenCalled()
+      expect(controller.activeTab).toBe("emoticons")
+    })
+
+    it("ignores other keys", () => {
+      controller.activeTab = "emoji"
+      const event = new KeyboardEvent("keydown", { key: "Enter" })
+      event.preventDefault = vi.fn()
+      controller.onTabKeydown(event)
+
+      expect(event.preventDefault).not.toHaveBeenCalled()
+      expect(controller.activeTab).toBe("emoji")
     })
 
     describe("Enter", () => {

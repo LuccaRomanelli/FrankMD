@@ -20,10 +20,11 @@
       </div>
 
       <!-- Tabs -->
-      <div class="flex border-b border-[var(--theme-border)] px-4 mt-2">
+      <div class="flex border-b border-[var(--theme-border)] px-4 mt-2" role="tablist" data-action="wheel->video-dialog#onTabWheel">
         <button
           type="button"
-          data-action="click->video-dialog#switchTab"
+          role="tab"
+          data-action="click->video-dialog#switchTab keydown->video-dialog#onTabKeydown"
           data-tab="url"
           data-video-dialog-target="tabUrl"
           class="px-4 py-2 text-sm font-medium border-b-2 border-[var(--theme-accent)] text-[var(--theme-accent)]"
@@ -32,7 +33,8 @@
         </button>
         <button
           type="button"
-          data-action="click->video-dialog#switchTab"
+          role="tab"
+          data-action="click->video-dialog#switchTab keydown->video-dialog#onTabKeydown"
           data-tab="search"
           data-video-dialog-target="tabSearch"
           class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)]"

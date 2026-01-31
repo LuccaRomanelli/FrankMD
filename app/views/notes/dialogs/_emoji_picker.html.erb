@@ -12,17 +12,19 @@
       <!-- Header with tabs and search -->
       <div class="flex-none p-3 border-b border-[var(--theme-border)]">
         <div class="flex items-center justify-between mb-2">
-          <div class="flex gap-1">
+          <div class="flex gap-1" role="tablist" data-action="wheel->emoji-picker#onTabWheel">
             <button
               type="button"
+              role="tab"
               data-emoji-picker-target="tabEmoji"
-              data-action="click->emoji-picker#switchToEmoji"
+              data-action="click->emoji-picker#switchToEmoji keydown->emoji-picker#onTabKeydown"
               class="px-3 py-1 text-sm rounded-md bg-[var(--theme-accent)] text-[var(--theme-accent-text)]"
             ><%= t('dialogs.emoji_picker.tab_emoji') %></button>
             <button
               type="button"
+              role="tab"
               data-emoji-picker-target="tabEmoticons"
-              data-action="click->emoji-picker#switchToEmoticons"
+              data-action="click->emoji-picker#switchToEmoticons keydown->emoji-picker#onTabKeydown"
               class="px-3 py-1 text-sm rounded-md hover:bg-[var(--theme-bg-hover)] text-[var(--theme-text-muted)]"
             ><%= t('dialogs.emoji_picker.tab_emoticons') %></button>
           </div>

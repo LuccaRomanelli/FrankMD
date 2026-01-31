@@ -23,6 +23,7 @@ export default class extends Controller {
     this.youtubeApiEnabled = false
     this.detectedVideoType = null
     this.detectedVideoData = null
+    this.currentTab = "url"
 
     this.checkYoutubeApiEnabled()
   }
@@ -80,6 +81,12 @@ export default class extends Controller {
 
   switchTab(event) {
     const tab = event.currentTarget.dataset.tab
+    this.switchToTab(tab)
+  }
+
+  // Internal method to switch tabs by name
+  switchToTab(tab) {
+    this.currentTab = tab
 
     // Update tab buttons
     const urlTabClasses = tab === "url"
@@ -102,6 +109,57 @@ export default class extends Controller {
     } else if (tab === "search" && this.hasYoutubeSearchInputTarget && this.youtubeApiEnabled) {
       this.youtubeSearchInputTarget.focus()
     }
+  }
+
+  // Get ordered list of tab names
+  getTabOrder() {
+    return ["url", "search"]
+  }
+
+  // Handle arrow key navigation on tab buttons
+  onTabKeydown(event) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
+
+    event.preventDefault()
+    const tabs = this.getTabOrder()
+    const currentIndex = tabs.indexOf(this.currentTab)
+
+    let newIndex
+    if (event.key === "ArrowRight") {
+      newIndex = (currentIndex + 1) % tabs.length
+    } else {
+      newIndex = (currentIndex - 1 + tabs.length) % tabs.length
+    }
+
+    this.switchToTab(tabs[newIndex])
+    this.focusTab(tabs[newIndex])
+  }
+
+  // Focus the tab button for a given tab name
+  focusTab(tabName) {
+    if (tabName === "url" && this.hasTabUrlTarget) {
+      this.tabUrlTarget.focus()
+    } else if (tabName === "search" && this.hasTabSearchTarget) {
+      this.tabSearchTarget.focus()
+    }
+  }
+
+  // Handle mouse wheel on tab bar to switch tabs
+  onTabWheel(event) {
+    event.preventDefault()
+    const tabs = this.getTabOrder()
+    const currentIndex = tabs.indexOf(this.currentTab)
+
+    let newIndex
+    if (event.deltaY > 0 || event.deltaX > 0) {
+      // Scroll down/right -> next tab
+      newIndex = (currentIndex + 1) % tabs.length
+    } else {
+      // Scroll up/left -> previous tab
+      newIndex = (currentIndex - 1 + tabs.length) % tabs.length
+    }
+
+    this.switchToTab(tabs[newIndex])
   }
 
   onVideoUrlInput() {

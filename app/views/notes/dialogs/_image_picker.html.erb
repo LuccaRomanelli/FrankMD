@@ -21,10 +21,11 @@
     </div>
 
     <!-- Tabs -->
-    <div class="flex-shrink-0 flex border-b border-[var(--theme-border)] px-4 mt-2">
+    <div class="flex-shrink-0 flex border-b border-[var(--theme-border)] px-4 mt-2" role="tablist" data-action="wheel->image-picker#onTabWheel">
       <button
         type="button"
-        data-action="click->image-picker#switchTab"
+        role="tab"
+        data-action="click->image-picker#switchTab keydown->image-picker#onTabKeydown"
         data-tab="local"
         data-image-picker-target="tabLocal"
         class="px-4 py-2 text-sm font-medium border-b-2 border-[var(--theme-accent)] text-[var(--theme-accent)]"
@@ -33,7 +34,8 @@
       </button>
       <button
         type="button"
-        data-action="click->image-picker#switchTab"
+        role="tab"
+        data-action="click->image-picker#switchTab keydown->image-picker#onTabKeydown"
         data-tab="folder"
         data-image-picker-target="tabFolder"
         class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)]"
@@ -42,7 +44,8 @@
       </button>
       <button
         type="button"
-        data-action="click->image-picker#switchTab"
+        role="tab"
+        data-action="click->image-picker#switchTab keydown->image-picker#onTabKeydown"
         data-tab="web"
         data-image-picker-target="tabWeb"
         class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)]"
@@ -51,7 +54,8 @@
       </button>
       <button
         type="button"
-        data-action="click->image-picker#switchTab"
+        role="tab"
+        data-action="click->image-picker#switchTab keydown->image-picker#onTabKeydown"
         data-tab="google"
         data-image-picker-target="tabGoogle"
         class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)]"
@@ -60,7 +64,8 @@
       </button>
       <button
         type="button"
-        data-action="click->image-picker#switchTab"
+        role="tab"
+        data-action="click->image-picker#switchTab keydown->image-picker#onTabKeydown"
         data-tab="pinterest"
         data-image-picker-target="tabPinterest"
         class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)]"
@@ -69,7 +74,8 @@
       </button>
       <button
         type="button"
-        data-action="click->image-picker#switchTab"
+        role="tab"
+        data-action="click->image-picker#switchTab keydown->image-picker#onTabKeydown"
         data-tab="ai"
         data-image-picker-target="tabAi"
         class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-[var(--theme-text-muted)] hover:text-[var(--theme-text-secondary)]"

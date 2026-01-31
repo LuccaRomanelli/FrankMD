@@ -118,6 +118,11 @@ export default class extends Controller {
   // Tab switching
   switchTab(event) {
     const tab = event.currentTarget.dataset.tab
+    this.switchToTab(tab)
+  }
+
+  // Internal method to switch tabs by name
+  switchToTab(tab) {
     this.currentTab = tab
 
     const activeClasses = "border-[var(--theme-accent)] text-[var(--theme-accent)]"
@@ -148,6 +153,56 @@ export default class extends Controller {
 
     const ctrl = this.getSourceController(controllerMap[tab])
     if (ctrl) ctrl.activate()
+  }
+
+  // Get ordered list of tab names
+  getTabOrder() {
+    return ["local", "folder", "web", "google", "pinterest", "ai"]
+  }
+
+  // Handle arrow key navigation on tab buttons
+  onTabKeydown(event) {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
+
+    event.preventDefault()
+    const tabs = this.getTabOrder()
+    const currentIndex = tabs.indexOf(this.currentTab)
+
+    let newIndex
+    if (event.key === "ArrowRight") {
+      newIndex = (currentIndex + 1) % tabs.length
+    } else {
+      newIndex = (currentIndex - 1 + tabs.length) % tabs.length
+    }
+
+    this.switchToTab(tabs[newIndex])
+    this.focusTab(tabs[newIndex])
+  }
+
+  // Focus the tab button for a given tab name
+  focusTab(tabName) {
+    const targetName = `tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Target`
+    if (this[`has${targetName.replace('Target', '')}Target`]) {
+      this[targetName].focus()
+    }
+  }
+
+  // Handle mouse wheel on tab bar to switch tabs
+  onTabWheel(event) {
+    event.preventDefault()
+    const tabs = this.getTabOrder()
+    const currentIndex = tabs.indexOf(this.currentTab)
+
+    let newIndex
+    if (event.deltaY > 0 || event.deltaX > 0) {
+      // Scroll down/right -> next tab
+      newIndex = (currentIndex + 1) % tabs.length
+    } else {
+      // Scroll up/left -> previous tab
+      newIndex = (currentIndex - 1 + tabs.length) % tabs.length
+    }
+
+    this.switchToTab(tabs[newIndex])
   }
 
   // Handle selection events from source controllers
