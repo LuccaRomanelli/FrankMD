@@ -71,16 +71,28 @@ class Note
   rescue NotesService::InvalidPathError => e
     errors.add(:path, e.message)
     false
+  rescue Errno::EACCES, Errno::EPERM
+    errors.add(:base, I18n.t("errors.permission_denied"))
+    false
+  rescue Errno::ENOENT
+    errors.add(:base, I18n.t("errors.parent_folder_not_found"))
+    false
   end
 
   def destroy
     service.delete(normalized_path)
     true
   rescue NotesService::NotFoundError
-    errors.add(:base, "Note not found")
+    errors.add(:base, I18n.t("errors.note_not_found"))
     false
   rescue NotesService::InvalidPathError => e
     errors.add(:base, e.message)
+    false
+  rescue Errno::EACCES, Errno::EPERM
+    errors.add(:base, I18n.t("errors.permission_denied"))
+    false
+  rescue Errno::ENOENT
+    errors.add(:base, I18n.t("errors.file_no_longer_exists"))
     false
   end
 
@@ -90,10 +102,16 @@ class Note
     self.path = new_path
     true
   rescue NotesService::NotFoundError
-    errors.add(:base, "Note not found")
+    errors.add(:base, I18n.t("errors.note_not_found"))
     false
   rescue NotesService::InvalidPathError => e
     errors.add(:path, e.message)
+    false
+  rescue Errno::EACCES, Errno::EPERM
+    errors.add(:base, I18n.t("errors.permission_denied"))
+    false
+  rescue Errno::ENOENT
+    errors.add(:base, I18n.t("errors.file_no_longer_exists"))
     false
   end
 

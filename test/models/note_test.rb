@@ -226,4 +226,66 @@ class NoteTest < ActiveSupport::TestCase
     assert_equal "test", json[:name]
     assert_equal "# Test", json[:content]
   end
+
+  # === Permission and file system errors ===
+
+  test "note.destroy handles file that disappeared" do
+    create_test_note("disappearing.md", "content")
+    note = Note.new(path: "disappearing.md")
+
+    # Delete the file externally to simulate it being removed outside the app
+    File.delete(@test_notes_dir.join("disappearing.md"))
+
+    refute note.destroy
+    assert note.errors[:base].any?
+    assert_includes note.errors[:base].first, "not found"
+  end
+
+  test "note.rename handles source file that disappeared" do
+    create_test_note("source.md", "content")
+    note = Note.new(path: "source.md")
+
+    # Delete the file externally
+    File.delete(@test_notes_dir.join("source.md"))
+
+    refute note.rename("destination.md")
+    assert note.errors[:base].any?
+  end
+
+  test "note.save handles permission denied on create" do
+    # Skip on Windows where chmod doesn't work the same way
+    skip "chmod test not applicable on this platform" unless File.respond_to?(:chmod)
+
+    # Create a directory with no write permission
+    readonly_dir = @test_notes_dir.join("readonly")
+    FileUtils.mkdir_p(readonly_dir)
+    File.chmod(0o555, readonly_dir)
+
+    note = Note.new(path: "readonly/cannot_write.md", content: "content")
+    result = note.save
+
+    # Restore permissions for cleanup
+    File.chmod(0o755, readonly_dir)
+
+    refute result
+    assert note.errors[:base].any?
+  end
+
+  test "note.destroy handles permission denied" do
+    skip "chmod test not applicable on this platform" unless File.respond_to?(:chmod)
+
+    # Create a file and make parent directory read-only
+    create_test_note("protected.md", "content")
+    File.chmod(0o555, @test_notes_dir)
+
+    note = Note.new(path: "protected.md")
+    result = note.destroy
+
+    # Restore permissions for cleanup
+    File.chmod(0o755, @test_notes_dir)
+
+    refute result
+    assert note.errors[:base].any?
+    assert_includes note.errors[:base].first, "Permission denied"
+  end
 end

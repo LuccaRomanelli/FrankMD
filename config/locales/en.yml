@@ -452,6 +452,10 @@ en:
     failed_to_rename: "Failed to rename"
     failed_to_delete: "Failed to delete"
     failed_to_upload: "Failed to upload"
+    permission_denied: "Permission denied. You may not have access to this file or folder."
+    file_no_longer_exists: "This file no longer exists. It may have been moved or deleted."
+    folder_no_longer_exists: "This folder no longer exists. It may have been moved or deleted."
+    parent_folder_not_found: "Parent folder not found. It may have been moved or deleted."
     failed_to_process_ai: "Failed to process text with AI"
 
   # Confirm messages

@@ -44,7 +44,7 @@ class Folder
   def create
     return false unless valid?
     if exists?
-      errors.add(:base, "Folder already exists")
+      errors.add(:base, I18n.t("errors.folder_already_exists"))
       return false
     end
     service.create_folder(path)
@@ -52,16 +52,28 @@ class Folder
   rescue NotesService::InvalidPathError => e
     errors.add(:path, e.message)
     false
+  rescue Errno::EACCES, Errno::EPERM
+    errors.add(:base, I18n.t("errors.permission_denied"))
+    false
+  rescue Errno::ENOENT
+    errors.add(:base, I18n.t("errors.parent_folder_not_found"))
+    false
   end
 
   def destroy
     service.delete_folder(path)
     true
   rescue NotesService::NotFoundError
-    errors.add(:base, "Folder not found")
+    errors.add(:base, I18n.t("errors.folder_not_found"))
     false
   rescue NotesService::InvalidPathError => e
     errors.add(:base, e.message)
+    false
+  rescue Errno::EACCES, Errno::EPERM
+    errors.add(:base, I18n.t("errors.permission_denied"))
+    false
+  rescue Errno::ENOENT
+    errors.add(:base, I18n.t("errors.folder_no_longer_exists"))
     false
   end
 
@@ -70,10 +82,16 @@ class Folder
     self.path = new_path
     true
   rescue NotesService::NotFoundError
-    errors.add(:base, "Folder not found")
+    errors.add(:base, I18n.t("errors.folder_not_found"))
     false
   rescue NotesService::InvalidPathError => e
     errors.add(:path, e.message)
+    false
+  rescue Errno::EACCES, Errno::EPERM
+    errors.add(:base, I18n.t("errors.permission_denied"))
+    false
+  rescue Errno::ENOENT
+    errors.add(:base, I18n.t("errors.folder_no_longer_exists"))
     false
   end
 

@@ -202,4 +202,63 @@ class FolderTest < ActiveSupport::TestCase
     folder = Folder.new(path: "nonexistent")
     assert_equal [], folder.children
   end
+
+  # === Permission and file system errors ===
+
+  test "folder.destroy handles folder that disappeared" do
+    create_test_folder("disappearing")
+    folder = Folder.new(path: "disappearing")
+
+    # Delete the folder externally
+    FileUtils.rm_rf(@test_notes_dir.join("disappearing"))
+
+    refute folder.destroy
+    assert folder.errors[:base].any?
+    assert_includes folder.errors[:base].first, "not found"
+  end
+
+  test "folder.rename handles source folder that disappeared" do
+    create_test_folder("source_folder")
+    folder = Folder.new(path: "source_folder")
+
+    # Delete the folder externally
+    FileUtils.rm_rf(@test_notes_dir.join("source_folder"))
+
+    refute folder.rename("destination_folder")
+    assert folder.errors[:base].any?
+  end
+
+  test "folder.create handles permission denied" do
+    skip "chmod test not applicable on this platform" unless File.respond_to?(:chmod)
+
+    # Make the base directory read-only
+    File.chmod(0o555, @test_notes_dir)
+
+    folder = Folder.new(path: "cannot_create")
+    result = folder.create
+
+    # Restore permissions for cleanup
+    File.chmod(0o755, @test_notes_dir)
+
+    refute result
+    assert folder.errors[:base].any?
+    assert_includes folder.errors[:base].first, "Permission denied"
+  end
+
+  test "folder.destroy handles permission denied" do
+    skip "chmod test not applicable on this platform" unless File.respond_to?(:chmod)
+
+    create_test_folder("protected_folder")
+    File.chmod(0o555, @test_notes_dir)
+
+    folder = Folder.new(path: "protected_folder")
+    result = folder.destroy
+
+    # Restore permissions for cleanup
+    File.chmod(0o755, @test_notes_dir)
+
+    refute result
+    assert folder.errors[:base].any?
+    assert_includes folder.errors[:base].first, "Permission denied"
+  end
 end
