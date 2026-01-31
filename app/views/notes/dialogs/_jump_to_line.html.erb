@@ -1,0 +1,42 @@
+<div data-controller="jump-to-line"
+     data-action="jump-to-line:jump->app#onJumpToLine">
+  <dialog
+    class="p-0 rounded-lg shadow-xl backdrop:bg-black/50 bg-[var(--theme-bg-secondary)] border border-[var(--theme-border)] w-[360px]"
+    data-jump-to-line-target="dialog"
+  >
+    <div class="p-4 text-[var(--theme-text-primary)]">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold"><%= t("dialogs.jump_to_line.title") %></h3>
+        <button
+          type="button"
+          data-action="click->jump-to-line#close"
+          class="p-1 rounded hover:bg-[var(--theme-bg-hover)] text-[var(--theme-text-muted)]"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <input
+          type="text"
+          data-jump-to-line-target="input"
+          data-action="keydown->jump-to-line#onKeydown"
+          class="flex-1 px-3 py-2 text-sm border border-[var(--theme-border)] rounded-md bg-[var(--theme-bg-primary)] text-[var(--theme-text-primary)] placeholder-[var(--theme-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--theme-accent)]"
+          placeholder="<%= t("dialogs.jump_to_line.placeholder") %>"
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <button
+          type="button"
+          data-action="click->jump-to-line#jump"
+          class="px-3 py-1.5 text-sm rounded-md bg-[var(--theme-accent)] text-[var(--theme-accent-text)] hover:bg-[var(--theme-accent-hover)]"
+        >
+          <%= t("dialogs.jump_to_line.go") %>
+        </button>
+      </div>
+      <div class="mt-2 text-xs text-[var(--theme-text-muted)]" data-jump-to-line-target="status"></div>
+      <div class="mt-1 text-xs text-[var(--theme-text-faint)]"><%= t("dialogs.file_finder.esc_to_close") %></div>
+    </div>
+  </dialog>
+</div>

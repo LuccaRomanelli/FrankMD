@@ -358,6 +358,12 @@ pt-PT:
       additions_hint: "(adições a verde)"
       accept_changes: "Aceitar Alterações"
 
+    jump_to_line:
+      title: "Ir para a linha"
+      placeholder: "ex. 10, +5, -5, -1"
+      hint: "Número da linha; +N/-N relativo; -1 vai para o fim"
+      go: "Ir"
+
     find_replace:
       tab_find: "Pesquisar"
       tab_replace: "Substituir"

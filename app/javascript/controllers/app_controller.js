@@ -1515,6 +1515,27 @@ export default class extends Controller {
     this.onTextareaInput()
   }
 
+  openJumpToLine() {
+    if (!this.hasTextareaTarget) return
+
+    const jumpElement = document.querySelector('[data-controller~="jump-to-line"]')
+    if (jumpElement) {
+      const jumpController = this.application.getControllerForElementAndIdentifier(
+        jumpElement,
+        "jump-to-line"
+      )
+      if (jumpController) {
+        jumpController.open(this.textareaTarget)
+      }
+    }
+  }
+
+  onJumpToLine(event) {
+    const { lineNumber } = event.detail
+    if (!lineNumber) return
+    this.jumpToLine(lineNumber)
+  }
+
   // Content Search (Ctrl+Shift+F) - Delegates to content_search_controller
   openContentSearch() {
     const contentSearchElement = document.querySelector('[data-controller~="content-search"]')
@@ -1924,6 +1945,11 @@ export default class extends Controller {
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === "H") {
         event.preventDefault()
         this.openFindReplace({ tab: "replace" })
+      }
+
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key === "g") {
+        event.preventDefault()
+        this.openJumpToLine()
       }
 
       // Ctrl/Cmd + Shift + F: Content search

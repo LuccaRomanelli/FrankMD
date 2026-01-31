@@ -358,6 +358,12 @@ ja:
       additions_hint: "（追加は緑）"
       accept_changes: "変更を適用"
 
+    jump_to_line:
+      title: "行へ移動"
+      placeholder: "例: 10, +5, -5, -1"
+      hint: "行番号。+N/-N は相対、-1 は末尾"
+      go: "移動"
+
     find_replace:
       tab_find: "検索"
       tab_replace: "置換"

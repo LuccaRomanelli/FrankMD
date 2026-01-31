@@ -358,6 +358,12 @@ ko:
       additions_hint: "(추가는 초록색)"
       accept_changes: "변경사항 적용"
 
+    jump_to_line:
+      title: "줄로 이동"
+      placeholder: "예: 10, +5, -5, -1"
+      hint: "줄 번호 입력. +N/-N은 상대, -1은 끝"
+      go: "이동"
+
     find_replace:
       tab_find: "찾기"
       tab_replace: "바꾸기"
