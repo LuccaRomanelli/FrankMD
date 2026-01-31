@@ -80,7 +80,7 @@ class NotesService
   end
 
   # Search file contents for a pattern (text or regex)
-  # Returns an array of matches with context
+  # Returns an array of matches with context, sorted by file modification time (newest first)
   def search_content(query, context_lines: 3, max_results: 50)
     return [] if query.blank?
 
@@ -92,19 +92,27 @@ class NotesService
     end
 
     results = []
-    # Use unsorted file collection for faster search
+    # Use unsorted file collection for faster search (skip mtime stat on all files)
     collect_markdown_files_unsorted(@base_path) do |file_path|
       break if results.size >= max_results
 
       relative_path = file_path.relative_path_from(@base_path).to_s
       file_matches = search_file(file_path, regex, context_lines, max_results - results.size)
 
+      # Only stat files that have matches (much cheaper than all files)
+      mtime = file_matches.any? ? file_path.mtime : nil
+
       file_matches.each do |match|
-        results << match.merge(path: relative_path, name: file_path.basename(".md").to_s)
+        results << match.merge(
+          path: relative_path,
+          name: file_path.basename(".md").to_s,
+          mtime: mtime
+        )
       end
     end
 
-    results
+    # Sort results by file modification time (newest first)
+    results.sort_by { |r| -r[:mtime].to_i }
   end
 
   private
