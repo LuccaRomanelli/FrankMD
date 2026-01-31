@@ -114,7 +114,7 @@ class NotesService
     files = []
     return files unless dir.directory?
 
-    dir.children.sort_by { |p| p.basename.to_s.downcase }.each do |entry|
+    dir.children.sort_by { |p| -p.mtime.to_i }.each do |entry|
       next if entry.basename.to_s.start_with?(".")
 
       if entry.directory?
@@ -173,7 +173,7 @@ class NotesService
   VISIBLE_DOTFILES = %w[.fed].freeze
 
   def build_tree(dir, relative_base = @base_path)
-    entries = dir.children.sort_by { |p| [p.directory? ? 0 : 1, p.basename.to_s.downcase] }
+    entries = dir.children.sort_by { |p| [p.directory? ? 0 : 1, -p.mtime.to_i] }
 
     entries.filter_map do |entry|
       basename = entry.basename.to_s

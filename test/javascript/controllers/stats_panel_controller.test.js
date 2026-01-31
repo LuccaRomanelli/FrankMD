@@ -127,7 +127,7 @@ describe("StatsPanelController", () => {
       // Wait for debounce (500ms + buffer)
       await new Promise(resolve => setTimeout(resolve, 600))
 
-      expect(updateSpy).toHaveBeenCalledWith("test text")
+      expect(updateSpy).toHaveBeenCalledWith("test text", undefined)
     })
   })
 
@@ -138,7 +138,7 @@ describe("StatsPanelController", () => {
 
       controller.onUpdate(event)
 
-      expect(scheduleSpy).toHaveBeenCalledWith("hello")
+      expect(scheduleSpy).toHaveBeenCalledWith("hello", undefined)
     })
 
     it("calls update directly when immediate flag is set", () => {
@@ -147,7 +147,7 @@ describe("StatsPanelController", () => {
 
       controller.onUpdate(event)
 
-      expect(updateSpy).toHaveBeenCalledWith("hello")
+      expect(updateSpy).toHaveBeenCalledWith("hello", undefined)
     })
   })
 
