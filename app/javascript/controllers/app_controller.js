@@ -1579,6 +1579,11 @@ export default class extends Controller {
   onPreviewToggled(event) {
     const { visible } = event.detail
     if (visible) {
+      // Ensure editor sync is setup (may not have been ready at connect time)
+      const previewController = this.getPreviewController()
+      if (previewController && this.hasTextareaTarget) {
+        previewController.setupEditorSync(this.textareaTarget)
+      }
       this.updatePreview()
       setTimeout(() => this.syncPreviewScrollToCursor(), 50)
     }
