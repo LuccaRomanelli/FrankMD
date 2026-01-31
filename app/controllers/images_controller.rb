@@ -225,7 +225,16 @@ class ImagesController < ApplicationController
 
     unless response.is_a?(Net::HTTPSuccess)
       Rails.logger.error "Google API error: #{response.code} - #{response.body}"
-      return { error: "Google API error", images: [] }
+      # Parse error details from Google's response
+      begin
+        error_data = JSON.parse(response.body)
+        error_message = error_data.dig("error", "message") || "Google API error (#{response.code})"
+        error_reason = error_data.dig("error", "errors", 0, "reason")
+        Rails.logger.error "Google API error reason: #{error_reason}"
+        return { error: error_message, images: [] }
+      rescue JSON::ParserError
+        return { error: "Google API error (#{response.code})", images: [] }
+      end
     end
 
     data = JSON.parse(response.body)

@@ -2,6 +2,7 @@ import { Controller } from "@hotwired/stimulus"
 import { marked } from "marked"
 import { escapeHtml } from "lib/text_utils"
 import { findTableAtPosition, findCodeBlockAtPosition } from "lib/markdown_utils"
+import { allExtensions } from "lib/marked_extensions"
 import { encodePath } from "lib/url_utils"
 import { flattenTree } from "lib/tree_utils"
 
@@ -83,10 +84,11 @@ export default class extends Controller {
     this.setupConfigFileListener()
     this.setupTableEditorListener()
 
-    // Configure marked
-    marked.setOptions({
+    // Configure marked with custom extensions for superscript, subscript, highlight, emoji
+    marked.use({
       breaks: true,
-      gfm: true
+      gfm: true,
+      extensions: allExtensions
     })
 
     // Handle initial file from URL (bookmarkable URLs)
