@@ -52,6 +52,7 @@ es:
     characters: "Caracteres"
     size: "Tamaño"
     read_time: "Tiempo de lectura"
+    line: "Línea"
 
   # Editor section
   editor:

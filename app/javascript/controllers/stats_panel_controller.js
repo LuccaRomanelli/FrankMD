@@ -11,7 +11,8 @@ export default class extends Controller {
     "words",
     "chars",
     "size",
-    "readTime"
+    "readTime",
+    "linePosition"
   ]
 
   connect() {
@@ -39,15 +40,15 @@ export default class extends Controller {
   }
 
   // Schedule a debounced stats update
-  scheduleUpdate(text) {
+  scheduleUpdate(text, cursorInfo) {
     if (this.updateTimeout) {
       clearTimeout(this.updateTimeout)
     }
-    this.updateTimeout = setTimeout(() => this.update(text), 500)
+    this.updateTimeout = setTimeout(() => this.update(text, cursorInfo), 500)
   }
 
   // Update stats display with text content
-  update(text) {
+  update(text, cursorInfo) {
     if (!this.hasPanelTarget) return
 
     const stats = calculateStats(text || "")
@@ -64,15 +65,25 @@ export default class extends Controller {
     if (this.hasReadTimeTarget) {
       this.readTimeTarget.textContent = formatReadTime(stats.readTimeMinutes)
     }
+    if (this.hasLinePositionTarget && cursorInfo) {
+      this.linePositionTarget.textContent = `${cursorInfo.currentLine}/${cursorInfo.totalLines}`
+    }
+  }
+
+  // Update just the line position (called on cursor movement)
+  updateLinePosition(cursorInfo) {
+    if (this.hasLinePositionTarget && cursorInfo) {
+      this.linePositionTarget.textContent = `${cursorInfo.currentLine}/${cursorInfo.totalLines}`
+    }
   }
 
   // Handle update event from app controller
   onUpdate(event) {
-    const { text, immediate } = event.detail || {}
+    const { text, cursorInfo, immediate } = event.detail || {}
     if (immediate) {
-      this.update(text)
+      this.update(text, cursorInfo)
     } else {
-      this.scheduleUpdate(text)
+      this.scheduleUpdate(text, cursorInfo)
     }
   }
 }

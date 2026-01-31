@@ -52,6 +52,7 @@ ko:
     characters: "문자"
     size: "크기"
     read_time: "읽기"
+    line: "줄"
 
   # 에디터 섹션
   editor:

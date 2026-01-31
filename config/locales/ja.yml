@@ -52,6 +52,7 @@ ja:
     characters: "文字数"
     size: "サイズ"
     read_time: "読了時間"
+    line: "行"
 
   # Editor section
   editor:

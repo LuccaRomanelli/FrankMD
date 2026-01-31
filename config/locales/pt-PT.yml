@@ -52,6 +52,7 @@ pt-PT:
     characters: "Caracteres"
     size: "Tamanho"
     read_time: "Leitura"
+    line: "Linha"
 
   # Secção do editor
   editor:

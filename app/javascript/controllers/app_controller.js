@@ -633,6 +633,7 @@ export default class extends Controller {
 
   onTextareaSelectionChange() {
     this.scheduleLineNumberUpdate()
+    this.updateLinePosition()
   }
 
   onTextareaScroll() {
@@ -2627,15 +2628,34 @@ export default class extends Controller {
   scheduleStatsUpdate() {
     const statsController = this.getStatsPanelController()
     if (statsController && this.hasTextareaTarget) {
-      statsController.scheduleUpdate(this.textareaTarget.value)
+      statsController.scheduleUpdate(this.textareaTarget.value, this.getCursorInfo())
     }
   }
 
   updateStats() {
     const statsController = this.getStatsPanelController()
     if (statsController && this.hasTextareaTarget) {
-      statsController.update(this.textareaTarget.value)
+      statsController.update(this.textareaTarget.value, this.getCursorInfo())
     }
+  }
+
+  updateLinePosition() {
+    const statsController = this.getStatsPanelController()
+    if (statsController && this.hasTextareaTarget) {
+      statsController.updateLinePosition(this.getCursorInfo())
+    }
+  }
+
+  getCursorInfo() {
+    if (!this.hasTextareaTarget) return null
+
+    const text = this.textareaTarget.value
+    const cursorPos = this.textareaTarget.selectionStart
+    const textBeforeCursor = text.substring(0, cursorPos)
+    const currentLine = textBeforeCursor.split("\n").length
+    const totalLines = text.split("\n").length
+
+    return { currentLine, totalLines }
   }
 
 }
