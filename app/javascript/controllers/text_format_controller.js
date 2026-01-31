@@ -266,6 +266,52 @@ export default class extends Controller {
     this.open(selectionData, x, y)
   }
 
+  // Check if a format is toggleable (symmetric prefix/suffix)
+  isToggleable(format) {
+    return format.prefix === format.suffix
+  }
+
+  // Check if text is wrapped with format markers and return unwrap info
+  getUnwrapInfo(format, textarea) {
+    const { prefix, suffix } = format
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const fullText = textarea.value
+    const selectedText = fullText.substring(start, end)
+
+    // Case 1: Selection itself includes the markers
+    if (selectedText.startsWith(prefix) && selectedText.endsWith(suffix) && selectedText.length >= prefix.length + suffix.length) {
+      return {
+        canUnwrap: true,
+        unwrapStart: start,
+        unwrapEnd: end,
+        newText: selectedText.slice(prefix.length, -suffix.length || undefined),
+        cursorStart: start,
+        cursorEnd: end - prefix.length - suffix.length
+      }
+    }
+
+    // Case 2: Markers are just outside the selection
+    const beforeStart = start - prefix.length
+    const afterEnd = end + suffix.length
+    if (beforeStart >= 0 && afterEnd <= fullText.length) {
+      const textBefore = fullText.substring(beforeStart, start)
+      const textAfter = fullText.substring(end, afterEnd)
+      if (textBefore === prefix && textAfter === suffix) {
+        return {
+          canUnwrap: true,
+          unwrapStart: beforeStart,
+          unwrapEnd: afterEnd,
+          newText: selectedText,
+          cursorStart: beforeStart,
+          cursorEnd: beforeStart + selectedText.length
+        }
+      }
+    }
+
+    return { canUnwrap: false }
+  }
+
   // Apply a format directly by its ID (for keyboard shortcuts like Ctrl+B, Ctrl+I)
   applyFormatById(formatId, textarea) {
     if (!textarea) return
@@ -275,7 +321,6 @@ export default class extends Controller {
 
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
-    const text = textarea.value.substring(start, end)
 
     // If no selection, just insert the format markers and place cursor between them
     if (start === end) {
@@ -287,10 +332,27 @@ export default class extends Controller {
       const cursorPos = start + prefix.length
       textarea.setSelectionRange(cursorPos, cursorPos)
       textarea.focus()
+      // Dispatch input event to trigger syntax highlighting update
+      textarea.dispatchEvent(new Event("input", { bubbles: true }))
       return true // Indicates formatting was applied
     }
 
+    // Check for toggle (unwrap) if format is toggleable
+    if (this.isToggleable(format)) {
+      const unwrapInfo = this.getUnwrapInfo(format, textarea)
+      if (unwrapInfo.canUnwrap) {
+        const before = textarea.value.substring(0, unwrapInfo.unwrapStart)
+        const after = textarea.value.substring(unwrapInfo.unwrapEnd)
+        textarea.value = before + unwrapInfo.newText + after
+        textarea.setSelectionRange(unwrapInfo.cursorStart, unwrapInfo.cursorEnd)
+        textarea.focus()
+        textarea.dispatchEvent(new Event("input", { bubbles: true }))
+        return true
+      }
+    }
+
     // Apply formatting to selected text
+    const text = textarea.value.substring(start, end)
     const selectionData = { start, end, text }
     this.applyFormatToTextarea(format, selectionData, textarea)
     return true
@@ -324,6 +386,8 @@ export default class extends Controller {
     }
 
     textarea.focus()
+    // Dispatch input event to trigger syntax highlighting update
+    textarea.dispatchEvent(new Event("input", { bubbles: true }))
   }
 
   // Get approximate caret coordinates in a textarea

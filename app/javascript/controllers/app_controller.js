@@ -170,6 +170,14 @@ export default class extends Controller {
     return null
   }
 
+  getSyntaxHighlightController() {
+    const element = document.querySelector('[data-controller~="syntax-highlight"]')
+    if (element) {
+      return this.application.getControllerForElementAndIdentifier(element, "syntax-highlight")
+    }
+    return null
+  }
+
   getPathDisplayController() {
     const element = document.querySelector('[data-controller~="path-display"]')
     if (element) {
@@ -507,6 +515,7 @@ export default class extends Controller {
     this.showStatsPanel()
     this.updateStats()
     this.scheduleLineNumberUpdate()
+    this.scheduleSyntaxHighlightUpdate()
   }
 
   // Check if current file is markdown
@@ -524,6 +533,7 @@ export default class extends Controller {
 
   onTextareaInput() {
     this.scheduleLineNumberUpdate()
+    this.scheduleSyntaxHighlightUpdate()
     this.scheduleAutoSave()
     this.scheduleStatsUpdate()
 
@@ -942,6 +952,15 @@ export default class extends Controller {
     const lineNumbersController = this.getLineNumbersController()
     if (lineNumbersController) {
       lineNumbersController.syncScroll()
+    }
+  }
+
+  // === Syntax Highlighting ===
+
+  scheduleSyntaxHighlightUpdate() {
+    const syntaxHighlightController = this.getSyntaxHighlightController()
+    if (syntaxHighlightController) {
+      syntaxHighlightController.scheduleUpdate()
     }
   }
 
@@ -1815,13 +1834,49 @@ export default class extends Controller {
 
     const textarea = this.textareaTarget
     const { start, end, text } = selectionData
+    const fullText = textarea.value
+
+    // Check for toggle (unwrap) if format is symmetric
+    const isToggleable = prefix === suffix
+    if (isToggleable) {
+      // Case 1: Selection itself includes the markers
+      if (text.startsWith(prefix) && text.endsWith(suffix) && text.length >= prefix.length + suffix.length) {
+        const unwrapped = text.slice(prefix.length, -suffix.length || undefined)
+        const before = fullText.substring(0, start)
+        const after = fullText.substring(end)
+        textarea.value = before + unwrapped + after
+        textarea.setSelectionRange(start, start + unwrapped.length)
+        textarea.focus()
+        this.scheduleAutoSave()
+        this.updatePreview()
+        return
+      }
+
+      // Case 2: Markers are just outside the selection
+      const beforeStart = start - prefix.length
+      const afterEnd = end + suffix.length
+      if (beforeStart >= 0 && afterEnd <= fullText.length) {
+        const textBefore = fullText.substring(beforeStart, start)
+        const textAfter = fullText.substring(end, afterEnd)
+        if (textBefore === prefix && textAfter === suffix) {
+          const before = fullText.substring(0, beforeStart)
+          const after = fullText.substring(afterEnd)
+          textarea.value = before + text + after
+          textarea.setSelectionRange(beforeStart, beforeStart + text.length)
+          textarea.focus()
+          this.scheduleAutoSave()
+          this.updatePreview()
+          return
+        }
+      }
+    }
 
     // Build the formatted text
     const formattedText = prefix + text + suffix
 
     // Replace the selected text
-    const before = textarea.value.substring(0, start)
-    const after = textarea.value.substring(end)
+    const before = fullText.substring(0, start)
+    const after = fullText.substring(end)
     textarea.value = before + formattedText + after
 
     // Calculate new cursor position

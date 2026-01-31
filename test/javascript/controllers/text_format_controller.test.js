@@ -475,4 +475,145 @@ describe("TextFormatController", () => {
       expect(controller.menuTarget.style.top).toBe("200px")
     })
   })
+
+  describe("isToggleable()", () => {
+    it("returns true for symmetric formats (bold)", () => {
+      const format = { prefix: "**", suffix: "**" }
+      expect(controller.isToggleable(format)).toBe(true)
+    })
+
+    it("returns true for symmetric formats (italic)", () => {
+      const format = { prefix: "*", suffix: "*" }
+      expect(controller.isToggleable(format)).toBe(true)
+    })
+
+    it("returns false for asymmetric formats (link)", () => {
+      const format = { prefix: "[", suffix: "](url)" }
+      expect(controller.isToggleable(format)).toBe(false)
+    })
+  })
+
+  describe("getUnwrapInfo()", () => {
+    let textarea
+
+    beforeEach(() => {
+      textarea = document.createElement("textarea")
+      document.body.appendChild(textarea)
+    })
+
+    afterEach(() => {
+      textarea.remove()
+    })
+
+    it("detects markers inside selection", () => {
+      const format = { prefix: "**", suffix: "**" }
+      textarea.value = "some **bold** text"
+      textarea.setSelectionRange(5, 13) // Select "**bold**"
+
+      const info = controller.getUnwrapInfo(format, textarea)
+
+      expect(info.canUnwrap).toBe(true)
+      expect(info.newText).toBe("bold")
+    })
+
+    it("detects markers outside selection", () => {
+      const format = { prefix: "**", suffix: "**" }
+      textarea.value = "some **bold** text"
+      textarea.setSelectionRange(7, 11) // Select "bold" only
+
+      const info = controller.getUnwrapInfo(format, textarea)
+
+      expect(info.canUnwrap).toBe(true)
+      expect(info.newText).toBe("bold")
+    })
+
+    it("returns canUnwrap false when no markers present", () => {
+      const format = { prefix: "**", suffix: "**" }
+      textarea.value = "some plain text"
+      textarea.setSelectionRange(5, 10) // Select "plain"
+
+      const info = controller.getUnwrapInfo(format, textarea)
+
+      expect(info.canUnwrap).toBe(false)
+    })
+
+    it("handles italic markers", () => {
+      const format = { prefix: "*", suffix: "*" }
+      textarea.value = "some *italic* text"
+      textarea.setSelectionRange(6, 12) // Select "italic" only
+
+      const info = controller.getUnwrapInfo(format, textarea)
+
+      expect(info.canUnwrap).toBe(true)
+      expect(info.newText).toBe("italic")
+    })
+  })
+
+  describe("applyFormatById() toggle behavior", () => {
+    let textarea
+
+    beforeEach(() => {
+      textarea = document.createElement("textarea")
+      document.body.appendChild(textarea)
+    })
+
+    afterEach(() => {
+      textarea.remove()
+    })
+
+    it("removes bold markers when text is already bold (markers outside selection)", () => {
+      textarea.value = "some **bold** text"
+      textarea.setSelectionRange(7, 11) // Select "bold" only
+
+      controller.applyFormatById("bold", textarea)
+
+      expect(textarea.value).toBe("some bold text")
+    })
+
+    it("removes bold markers when selection includes markers", () => {
+      textarea.value = "some **bold** text"
+      textarea.setSelectionRange(5, 13) // Select "**bold**"
+
+      controller.applyFormatById("bold", textarea)
+
+      expect(textarea.value).toBe("some bold text")
+    })
+
+    it("adds bold markers when text is not bold", () => {
+      textarea.value = "some plain text"
+      textarea.setSelectionRange(5, 10) // Select "plain"
+
+      controller.applyFormatById("bold", textarea)
+
+      expect(textarea.value).toBe("some **plain** text")
+    })
+
+    it("removes italic markers when text is already italic", () => {
+      textarea.value = "some *italic* text"
+      textarea.setSelectionRange(6, 12) // Select "italic" only
+
+      controller.applyFormatById("italic", textarea)
+
+      expect(textarea.value).toBe("some italic text")
+    })
+
+    it("removes strikethrough markers when text is already strikethrough", () => {
+      textarea.value = "some ~~deleted~~ text"
+      textarea.setSelectionRange(7, 14) // Select "deleted" only
+
+      controller.applyFormatById("strikethrough", textarea)
+
+      expect(textarea.value).toBe("some deleted text")
+    })
+
+    it("does not toggle link format (asymmetric)", () => {
+      textarea.value = "some [link](url) text"
+      textarea.setSelectionRange(6, 10) // Select "link" only
+
+      controller.applyFormatById("link", textarea)
+
+      // Should add link format, not remove it (since link is not toggleable)
+      expect(textarea.value).toBe("some [[link](url)](url) text")
+    })
+  })
 })
