@@ -2,7 +2,6 @@ import { Controller } from "@hotwired/stimulus"
 
 // Path Display Controller
 // Handles the file path display in the header with smart truncation
-// Dispatches path-display:copied event when path is copied to clipboard
 
 export default class extends Controller {
   static targets = ["text"]

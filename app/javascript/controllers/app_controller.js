@@ -63,7 +63,6 @@ export default class extends Controller {
       { id: "source-code-pro", name: "Source Code Pro", family: "'Source Code Pro', monospace" },
       { id: "ubuntu-mono", name: "Ubuntu Mono", family: "'Ubuntu Mono', monospace" }
     ]
-    this.editorFontSizes = [12, 13, 14, 15, 16, 18, 20, 22, 24]
 
     // Load settings from server config (falls back to defaults if not available)
     const settings = this.hasConfigValue ? (this.configValue.settings || {}) : {}
@@ -90,9 +89,6 @@ export default class extends Controller {
 
     // Track pending config saves to debounce
     this.configSaveTimeout = null
-
-    // Sync scroll enabled flag
-    this.syncScrollEnabled = true
 
     this.renderTree()
     this.setupKeyboardShortcuts()
@@ -178,14 +174,6 @@ export default class extends Controller {
     const element = document.querySelector('[data-controller~="path-display"]')
     if (element) {
       return this.application.getControllerForElementAndIdentifier(element, "path-display")
-    }
-    return null
-  }
-
-  getDragDropController() {
-    const element = document.querySelector('[data-controller~="drag-drop"]')
-    if (element) {
-      return this.application.getControllerForElementAndIdentifier(element, "drag-drop")
     }
     return null
   }
