@@ -17,6 +17,7 @@ class Config
     "sidebar_visible" => { default: true, type: :boolean, env: nil },
     "typewriter_mode" => { default: false, type: :boolean, env: nil },
     "editor_indent" => { default: 2, type: :integer, env: nil },
+    "editor_line_numbers" => { default: 0, type: :integer, env: nil },
 
     # Paths (ENV defaults)
     "images_path" => { default: nil, type: :string, env: "IMAGES_PATH" },
@@ -74,6 +75,7 @@ class Config
     sidebar_visible
     typewriter_mode
     editor_indent
+    editor_line_numbers
   ].freeze
 
   # AI provider priority (default order when ai_provider = "auto")

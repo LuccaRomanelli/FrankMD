@@ -5,6 +5,13 @@ import { findTableAtPosition, findCodeBlockAtPosition } from "lib/markdown_utils
 import { allExtensions } from "lib/marked_extensions"
 import { encodePath } from "lib/url_utils"
 import { flattenTree } from "lib/tree_utils"
+import {
+  LINE_NUMBER_MODES,
+  normalizeLineNumberMode,
+  nextLineNumberMode,
+  buildRelativeLineLabels,
+  buildAbsoluteLineLabels
+} from "lib/line_numbers"
 
 export default class extends Controller {
   static targets = [
@@ -20,7 +27,11 @@ export default class extends Controller {
     "tableHint",
     "sidebar",
     "sidebarToggle",
-    "aiButton"
+    "aiButton",
+    "lineNumberGutter",
+    "lineNumbers",
+    "editorWrapper",
+    "editorBody"
   ]
 
   static values = {
@@ -67,6 +78,14 @@ export default class extends Controller {
     // Editor indent setting: 0 = tab, 1-6 = spaces (default 2)
     this.editorIndent = this.parseIndentSetting(settings.editor_indent)
 
+    this.lineNumberMode = normalizeLineNumberMode(
+      settings.editor_line_numbers,
+      LINE_NUMBER_MODES.OFF
+    )
+    this.lineNumberMirror = null
+    this.lineNumberUpdateHandle = null
+    this.lineNumberResizeObserver = null
+
     // Track pending config saves to debounce
     this.configSaveTimeout = null
 
@@ -78,6 +97,7 @@ export default class extends Controller {
     this.setupDialogClickOutside()
     this.setupSyncScroll()
     this.applyEditorSettings()
+    this.setupLineNumbers()
     this.applyPreviewZoom()
     this.applySidebarVisibility()
     this.applyTypewriterMode()
@@ -123,6 +143,17 @@ export default class extends Controller {
 
     // Clean up object URLs to prevent memory leaks
     this.cleanupLocalFolderImages()
+
+    if (this.lineNumberResizeObserver) {
+      this.lineNumberResizeObserver.disconnect()
+    }
+    if (this.lineNumberMirror) {
+      this.lineNumberMirror.remove()
+      this.lineNumberMirror = null
+    }
+    if (this.lineNumberUpdateHandle) {
+      cancelAnimationFrame(this.lineNumberUpdateHandle)
+    }
 
     // Abort any pending AI requests
     if (this.aiImageAbortController) {
@@ -571,6 +602,7 @@ export default class extends Controller {
     // Show stats panel and update stats
     this.showStatsPanel()
     this.updateStats()
+    this.scheduleLineNumberUpdate()
   }
 
   // Check if current file is markdown
@@ -587,6 +619,7 @@ export default class extends Controller {
   }
 
   onTextareaInput() {
+    this.scheduleLineNumberUpdate()
     this.scheduleAutoSave()
     this.scheduleStatsUpdate()
 
@@ -596,6 +629,14 @@ export default class extends Controller {
       this.checkTableAtCursor()
       this.maintainTypewriterScroll()
     }
+  }
+
+  onTextareaSelectionChange() {
+    this.scheduleLineNumberUpdate()
+  }
+
+  onTextareaScroll() {
+    this.syncLineNumberScroll()
   }
 
   // Update preview and sync scroll to cursor position
@@ -719,11 +760,16 @@ export default class extends Controller {
       const oldFont = this.currentFont
       const oldFontSize = this.currentFontSize
       const oldZoom = this.previewZoom
+      const oldLineNumberMode = this.lineNumberMode
 
       this.currentFont = settings.editor_font || "cascadia-code"
       this.currentFontSize = parseInt(settings.editor_font_size) || 14
       this.previewZoom = parseInt(settings.preview_zoom) || 100
       this.editorIndent = this.parseIndentSetting(settings.editor_indent)
+      this.lineNumberMode = normalizeLineNumberMode(
+        settings.editor_line_numbers,
+        LINE_NUMBER_MODES.OFF
+      )
 
       // Apply changes if they differ
       if (this.currentFont !== oldFont || this.currentFontSize !== oldFontSize) {
@@ -734,6 +780,10 @@ export default class extends Controller {
         if (previewController) {
           previewController.zoomValue = this.previewZoom
         }
+      }
+      if (this.lineNumberMode !== oldLineNumberMode) {
+        this.applyLineNumberMode()
+        this.scheduleLineNumberUpdate()
       }
 
       // Notify theme controller to reload (dispatch custom event)
@@ -1034,6 +1084,164 @@ export default class extends Controller {
       this.textareaTarget.style.fontFamily = font.family
       this.textareaTarget.style.fontSize = `${this.currentFontSize}px`
     }
+    this.scheduleLineNumberUpdate()
+  }
+
+  setupLineNumbers() {
+    if (!this.hasLineNumberGutterTarget || !this.hasLineNumbersTarget || !this.hasTextareaTarget) return
+
+    this.ensureLineNumberMirror()
+    this.applyLineNumberMode()
+    this.scheduleLineNumberUpdate()
+
+    if (typeof ResizeObserver !== "undefined") {
+      this.lineNumberResizeObserver = new ResizeObserver(() => {
+        this.scheduleLineNumberUpdate()
+      })
+      this.lineNumberResizeObserver.observe(this.textareaTarget)
+    }
+  }
+
+  applyLineNumberMode() {
+    if (!this.hasLineNumberGutterTarget) return
+    const isVisible = this.lineNumberMode !== LINE_NUMBER_MODES.OFF
+    this.lineNumberGutterTarget.classList.toggle("hidden", !isVisible)
+    if (!isVisible && this.hasLineNumbersTarget) {
+      this.lineNumbersTarget.textContent = ""
+    }
+  }
+
+  toggleLineNumberMode() {
+    this.lineNumberMode = nextLineNumberMode(this.lineNumberMode)
+    this.saveConfig({ editor_line_numbers: this.lineNumberMode })
+    this.applyLineNumberMode()
+    this.scheduleLineNumberUpdate()
+  }
+
+  scheduleLineNumberUpdate() {
+    if (!this.hasLineNumberGutterTarget || !this.hasLineNumbersTarget || !this.hasTextareaTarget) return
+    if (this.lineNumberMode === LINE_NUMBER_MODES.OFF) return
+
+    if (this.lineNumberUpdateHandle) {
+      cancelAnimationFrame(this.lineNumberUpdateHandle)
+    }
+
+    this.lineNumberUpdateHandle = requestAnimationFrame(() => {
+      this.updateLineNumbers()
+    })
+  }
+
+  updateLineNumbers() {
+    if (!this.hasLineNumberGutterTarget || !this.hasLineNumbersTarget || !this.hasTextareaTarget) return
+    if (this.lineNumberMode === LINE_NUMBER_MODES.OFF) return
+
+    this.lineNumberUpdateHandle = null
+
+    const { totalVisualLines, cursorVisualIndex, visualCountsPerLine } = this.getVisualLineMetrics()
+    const labels = this.lineNumberMode === LINE_NUMBER_MODES.RELATIVE
+      ? buildRelativeLineLabels(totalVisualLines, cursorVisualIndex)
+      : buildAbsoluteLineLabels(visualCountsPerLine)
+
+    const textareaStyle = window.getComputedStyle(this.textareaTarget)
+    this.lineNumbersTarget.style.lineHeight = textareaStyle.lineHeight
+    this.lineNumbersTarget.style.fontFamily = textareaStyle.fontFamily
+    this.lineNumbersTarget.textContent = labels.join("\n")
+
+    let labelWidth = String(Math.max(visualCountsPerLine.length, 1)).length
+    if (this.lineNumberMode === LINE_NUMBER_MODES.RELATIVE) {
+      const maxDistance = Math.max(cursorVisualIndex, totalVisualLines - 1 - cursorVisualIndex)
+      labelWidth = String(maxDistance).length + (maxDistance > 0 ? 1 : 0)
+    }
+    const digits = Math.max(2, labelWidth)
+    this.lineNumberGutterTarget.style.width = `calc(${digits}ch + 1.5rem)`
+
+    this.syncLineNumberScroll()
+  }
+
+  syncLineNumberScroll() {
+    if (!this.hasLineNumbersTarget || !this.hasTextareaTarget) return
+    if (this.lineNumberMode === LINE_NUMBER_MODES.OFF) return
+
+    const scrollTop = this.textareaTarget.scrollTop
+    this.lineNumbersTarget.style.transform = `translateY(-${scrollTop}px)`
+  }
+
+  getVisualLineMetrics() {
+    this.ensureLineNumberMirror()
+    this.updateLineNumberMirrorStyle()
+
+    const value = this.textareaTarget.value
+    const cursorPos = this.textareaTarget.selectionStart || 0
+    const lineHeight = this.getTextareaLineHeight()
+    const textareaStyle = window.getComputedStyle(this.textareaTarget)
+    const paddingTop = parseFloat(textareaStyle.paddingTop) || 0
+    const paddingBottom = parseFloat(textareaStyle.paddingBottom) || 0
+
+    const lines = value.split("\n")
+    const beforeCursor = value.slice(0, cursorPos)
+    const currentLineIndex = beforeCursor.split("\n").length - 1
+    const lastNewlineIndex = beforeCursor.lastIndexOf("\n")
+    const columnIndex = beforeCursor.length - (lastNewlineIndex + 1)
+
+    const measureLine = (text) => {
+      const content = text.length ? text : "\u200b"
+      this.lineNumberMirror.textContent = content
+      const contentHeight = Math.max(0, this.lineNumberMirror.scrollHeight - paddingTop - paddingBottom)
+      return Math.max(1, Math.round(contentHeight / lineHeight))
+    }
+
+    const visualCountsPerLine = lines.map(measureLine)
+    const totalVisualLines = visualCountsPerLine.reduce((sum, count) => sum + count, 0)
+
+    const visualLinesBefore = visualCountsPerLine.slice(0, currentLineIndex).reduce((sum, count) => sum + count, 0)
+    const currentLineText = lines[currentLineIndex] || ""
+    const currentLinePrefix = currentLineText.slice(0, columnIndex)
+    const cursorOffset = Math.max(0, measureLine(currentLinePrefix) - 1)
+    const cursorVisualIndex = Math.min(totalVisualLines - 1, visualLinesBefore + cursorOffset)
+
+    return { totalVisualLines, cursorVisualIndex, visualCountsPerLine }
+  }
+
+  getTextareaLineHeight() {
+    const style = window.getComputedStyle(this.textareaTarget)
+    const lineHeight = parseFloat(style.lineHeight)
+    if (!Number.isFinite(lineHeight)) {
+      const fontSize = parseFloat(style.fontSize) || 14
+      return fontSize * 1.5
+    }
+    return lineHeight
+  }
+
+  ensureLineNumberMirror() {
+    if (this.lineNumberMirror) return
+
+    const mirror = document.createElement("div")
+    mirror.setAttribute("aria-hidden", "true")
+    mirror.style.position = "absolute"
+    mirror.style.top = "0"
+    mirror.style.left = "-9999px"
+    mirror.style.visibility = "hidden"
+    mirror.style.pointerEvents = "none"
+    mirror.style.whiteSpace = "pre-wrap"
+    mirror.style.wordBreak = "break-word"
+    mirror.style.overflowWrap = "break-word"
+    mirror.style.boxSizing = "border-box"
+
+    document.body.appendChild(mirror)
+    this.lineNumberMirror = mirror
+  }
+
+  updateLineNumberMirrorStyle() {
+    const style = window.getComputedStyle(this.textareaTarget)
+
+    this.lineNumberMirror.style.width = `${this.textareaTarget.clientWidth}px`
+    this.lineNumberMirror.style.fontFamily = style.fontFamily
+    this.lineNumberMirror.style.fontSize = style.fontSize
+    this.lineNumberMirror.style.fontWeight = style.fontWeight
+    this.lineNumberMirror.style.lineHeight = style.lineHeight
+    this.lineNumberMirror.style.letterSpacing = style.letterSpacing
+    this.lineNumberMirror.style.padding = style.padding
+    this.lineNumberMirror.style.tabSize = style.tabSize
   }
 
   // Save config settings to server (debounced)
@@ -1141,6 +1349,7 @@ export default class extends Controller {
       // Update toggle button icon state if needed
       this.sidebarToggleTarget.setAttribute("aria-expanded", this.sidebarVisible.toString())
     }
+    this.scheduleLineNumberUpdate()
   }
 
   // Copy current file path to clipboard
@@ -1285,6 +1494,12 @@ export default class extends Controller {
   applyTypewriterMode() {
     if (this.hasTextareaTarget) {
       this.textareaTarget.classList.toggle("typewriter-mode", this.typewriterModeEnabled)
+    }
+    if (this.hasEditorWrapperTarget) {
+      this.editorWrapperTarget.classList.toggle("typewriter-centered", this.typewriterModeEnabled)
+    }
+    if (this.hasEditorBodyTarget) {
+      this.editorBodyTarget.classList.toggle("typewriter-centered", this.typewriterModeEnabled)
     }
 
     // Toggle typewriter mode on preview controller
@@ -1814,6 +2029,7 @@ export default class extends Controller {
       this.updatePreview()
       setTimeout(() => this.syncPreviewScrollToCursor(), 50)
     }
+    this.scheduleLineNumberUpdate()
   }
 
   // File Operations Event Handlers
@@ -1950,6 +2166,11 @@ export default class extends Controller {
       if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key === "g") {
         event.preventDefault()
         this.openJumpToLine()
+      }
+
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key === "l") {
+        event.preventDefault()
+        this.toggleLineNumberMode()
       }
 
       // Ctrl/Cmd + Shift + F: Content search

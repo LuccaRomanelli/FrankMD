@@ -300,6 +300,7 @@ ja:
         toggle_sidebar: "サイドバー切替"
         toggle_preview: "プレビュー切替"
         typewriter_mode: "タイプライターモード"
+        toggle_line_numbers: "行番号切替"
         indent: "行/ブロックをインデント"
         unindent: "インデント解除"
         insert: "挿入"

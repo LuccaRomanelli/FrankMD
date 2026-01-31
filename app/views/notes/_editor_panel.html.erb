@@ -129,15 +129,19 @@
       </div>
     </div>
     <div class="h-full hidden relative" data-app-target="editor">
-      <!-- Centered editor wrapper for typewriter mode -->
-      <div class="h-full flex justify-center" data-app-target="editorWrapper">
-        <textarea
-          data-app-target="textarea"
-          data-action="input->app#onTextareaInput contextmenu->app#onTextareaContextMenu keydown->app#onTextareaKeydown"
-          class="editor-textarea w-full h-full p-4 resize-none bg-[var(--theme-bg-primary)] text-[var(--theme-text-primary)] font-mono text-sm leading-relaxed focus:outline-none"
-          placeholder="<%= t('editor.start_writing') %>"
-          spellcheck="false"
-        ></textarea>
+      <div class="h-full flex editor-wrapper" data-app-target="editorWrapper">
+        <div class="editor-line-number-gutter text-xs text-[var(--theme-text-faint)]" data-app-target="lineNumberGutter">
+          <pre class="editor-line-numbers" data-app-target="lineNumbers"></pre>
+        </div>
+        <div class="flex-1 h-full editor-body" data-app-target="editorBody">
+          <textarea
+            data-app-target="textarea"
+            data-action="input->app#onTextareaInput contextmenu->app#onTextareaContextMenu keydown->app#onTextareaKeydown keyup->app#onTextareaSelectionChange click->app#onTextareaSelectionChange scroll->app#onTextareaScroll"
+            class="editor-textarea w-full h-full p-4 resize-none bg-[var(--theme-bg-primary)] text-[var(--theme-text-primary)] font-mono text-sm leading-relaxed focus:outline-none"
+            placeholder="<%= t('editor.start_writing') %>"
+            spellcheck="false"
+          ></textarea>
+        </div>
       </div>
     </div>
   </div>

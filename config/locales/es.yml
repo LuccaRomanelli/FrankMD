@@ -300,6 +300,7 @@ es:
         toggle_sidebar: "Alternar barra lateral"
         toggle_preview: "Alternar vista previa"
         typewriter_mode: "Modo máquina de escribir"
+        toggle_line_numbers: "Alternar números de línea"
         indent: "Indentar línea/bloque"
         unindent: "Quitar indentación"
         insert: "Insertar"
