@@ -58,6 +58,11 @@
 - Editable corrections before accepting changes
 - Supports Ollama (local), OpenAI, and OpenRouter
 
+### Internationalization
+- **7 languages**: English, Português (Brasil), Português (Portugal), Español, עברית (Hebrew), 日本語 (Japanese), 한국어 (Korean)
+- Language picker in the header
+- Persistent preference saved to configuration
+
 ### Integrations
 - AWS S3 for image hosting (optional)
 - YouTube API for video search (optional)
@@ -98,6 +103,7 @@ For S3 image uploads and YouTube search, export the environment variables first:
 fed() {
   docker run --rm -p 3000:80 \
     -v "$(realpath "${1:-.}")":/rails/notes \
+    ${FRANKMD_LOCALE:+-e FRANKMD_LOCALE="$FRANKMD_LOCALE"} \
     ${IMAGES_PATH:+-v "$(realpath "$IMAGES_PATH")":/rails/images -e IMAGES_PATH=/rails/images} \
     ${AWS_ACCESS_KEY_ID:+-e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"} \
     ${AWS_SECRET_ACCESS_KEY:+-e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"} \
@@ -225,6 +231,7 @@ When you open a notes directory for the first time, FrankMD creates a `.fed` con
 ```ini
 # UI Settings
 theme = gruvbox
+locale = en
 editor_font = fira-code
 editor_font_size = 16
 preview_zoom = 100
@@ -281,6 +288,7 @@ The `.fed` file appears in the explorer panel with a gear icon. You can click it
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `theme` | string | (system) | Color theme: light, dark, gruvbox, tokyo-night, etc. |
+| `locale` | string | en | Language: en, pt-BR, pt-PT, es, he, ja, ko |
 | `editor_font` | string | cascadia-code | Editor font family |
 | `editor_font_size` | integer | 14 | Font size in pixels (8-32) |
 | `preview_zoom` | integer | 100 | Preview zoom percentage (50-200) |
@@ -315,6 +323,7 @@ Environment variables serve as global defaults. They're useful for Docker deploy
 |----------|-------------|---------|
 | `NOTES_PATH` | Directory where notes are stored | `./notes` |
 | `IMAGES_PATH` | Directory for local images | (disabled) |
+| `FRANKMD_LOCALE` | Default language (en, pt-BR, pt-PT, es, he, ja, ko) | en |
 | `SECRET_KEY_BASE` | Rails secret key (required in production) | - |
 
 ### Optional: Image Hosting (AWS S3)
@@ -573,17 +582,28 @@ Examples:
 
 ## Themes
 
-FrankMD supports multiple color themes:
+FrankMD includes 18 color themes:
 
-- **Light** - Clean light theme
-- **Dark** - Standard dark theme
-- **Gruvbox** - Retro groove color scheme
-- **Tokyo Night** - Vibrant night theme
-- **Solarized Light/Dark** - Classic color schemes
-- **Nord** - Arctic, north-bluish color palette
-- **Cappuccino** - Warm coffee tones
-- **Osaka** - Japanese-inspired colors
-- **Hackerman** - Matrix-style green on black
+| Theme | Description |
+|-------|-------------|
+| Light | Clean light theme |
+| Dark | Standard dark theme |
+| Catppuccin | Soothing pastel dark theme |
+| Catppuccin Latte | Soothing pastel light theme |
+| Ethereal | Dreamy, soft colors |
+| Everforest | Warm green nature theme |
+| Flexoki Light | Inky light theme |
+| Gruvbox | Retro groove color scheme |
+| Hackerman | Matrix-style green on black |
+| Kanagawa | Inspired by Katsushika Hokusai's art |
+| Matte Black | Pure dark minimal theme |
+| Nord | Arctic, north-bluish palette |
+| Osaka Jade | Japanese-inspired jade colors |
+| Ristretto | Deep coffee tones |
+| Rose Pine | All natural pine, faux fur and mystery |
+| Solarized Dark | Classic dark color scheme |
+| Solarized Light | Classic light color scheme |
+| Tokyo Night | Vibrant night theme |
 
 Change themes from the dropdown in the top-right corner. Your preference is saved to the `.fed` file.
 
@@ -673,12 +693,13 @@ bin/rails test -v
 ```
 app/
 ├── controllers/
-│   ├── notes_controller.rb    # Note CRUD operations
-│   ├── folders_controller.rb  # Folder management
-│   ├── images_controller.rb   # Image browsing & S3 upload
-│   ├── youtube_controller.rb  # YouTube search API
-│   ├── ai_controller.rb       # AI grammar checking API
-│   └── config_controller.rb   # .fed configuration
+│   ├── notes_controller.rb        # Note CRUD operations
+│   ├── folders_controller.rb      # Folder management
+│   ├── images_controller.rb       # Image browsing & S3 upload
+│   ├── youtube_controller.rb      # YouTube search API
+│   ├── ai_controller.rb           # AI grammar checking API
+│   ├── config_controller.rb       # .fed configuration
+│   └── translations_controller.rb # i18n API for JavaScript
 ├── models/
 │   ├── note.rb                # Note ActiveModel
 │   ├── folder.rb              # Folder ActiveModel
@@ -691,6 +712,7 @@ app/
 │   └── controllers/
 │       ├── app_controller.js          # Main Stimulus controller
 │       ├── theme_controller.js        # Theme management
+│       ├── locale_controller.js       # Language/i18n management
 │       └── table_editor_controller.js # Table editing
 └── views/
     └── notes/
