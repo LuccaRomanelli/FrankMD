@@ -301,8 +301,39 @@ export default class extends Controller {
   }
 
   disconnect() {
-    if (this.saveTimeout) {
-      clearTimeout(this.saveTimeout)
+    // Clear all timeouts
+    if (this.saveTimeout) clearTimeout(this.saveTimeout)
+    if (this.imageSearchTimeout) clearTimeout(this.imageSearchTimeout)
+    if (this.folderSearchTimeout) clearTimeout(this.folderSearchTimeout)
+    if (this.aiRefImageSearchTimeout) clearTimeout(this.aiRefImageSearchTimeout)
+    if (this.configSaveTimeout) clearTimeout(this.configSaveTimeout)
+    if (this.contentSearchTimeout) clearTimeout(this.contentSearchTimeout)
+    if (this.statsUpdateTimeout) clearTimeout(this.statsUpdateTimeout)
+    if (this.syncScrollTimeout) clearTimeout(this.syncScrollTimeout)
+
+    // Remove window/document event listeners
+    if (this.boundPopstateHandler) {
+      window.removeEventListener("popstate", this.boundPopstateHandler)
+    }
+    if (this.boundTableInsertHandler) {
+      window.removeEventListener("frankmd:insert-table", this.boundTableInsertHandler)
+    }
+    if (this.boundConfigFileHandler) {
+      window.removeEventListener("frankmd:config-file-modified", this.boundConfigFileHandler)
+    }
+    if (this.boundContextMenuClose) {
+      document.removeEventListener("click", this.boundContextMenuClose)
+    }
+    if (this.boundKeydownHandler) {
+      document.removeEventListener("keydown", this.boundKeydownHandler)
+    }
+
+    // Clean up object URLs to prevent memory leaks
+    this.cleanupLocalFolderImages()
+
+    // Abort any pending AI requests
+    if (this.aiImageAbortController) {
+      this.aiImageAbortController.abort()
     }
   }
 
@@ -368,7 +399,7 @@ export default class extends Controller {
   }
 
   setupHistoryHandling() {
-    window.addEventListener("popstate", async (event) => {
+    this.boundPopstateHandler = async (event) => {
       const path = event.state?.file || this.getFilePathFromUrl()
 
       if (path) {
@@ -384,7 +415,8 @@ export default class extends Controller {
         this.hideStatsPanel()
         this.renderTree()
       }
-    })
+    }
+    window.addEventListener("popstate", this.boundPopstateHandler)
   }
 
   expandParentFolders(path) {
@@ -1116,7 +1148,8 @@ export default class extends Controller {
 
   // Setup listener for table insertion from table_editor_controller
   setupTableEditorListener() {
-    window.addEventListener("frankmd:insert-table", this.handleTableInsert.bind(this))
+    this.boundTableInsertHandler = this.handleTableInsert.bind(this)
+    window.addEventListener("frankmd:insert-table", this.boundTableInsertHandler)
   }
 
   // Handle table insertion from table_editor_controller
@@ -2599,12 +2632,13 @@ export default class extends Controller {
 
   // Listen for config file modifications from any source (theme, settings, etc.)
   setupConfigFileListener() {
-    window.addEventListener("frankmd:config-file-modified", () => {
+    this.boundConfigFileHandler = () => {
       // If .fed is currently open in the editor, reload it
       if (this.currentFile === ".fed") {
         this.reloadCurrentConfigFile()
       }
-    })
+    }
+    window.addEventListener("frankmd:config-file-modified", this.boundConfigFileHandler)
   }
 
   // Preview Zoom
@@ -4583,9 +4617,10 @@ tags:
   }
 
   setupContextMenuClose() {
-    document.addEventListener("click", () => {
+    this.boundContextMenuClose = () => {
       this.contextMenuTarget.classList.add("hidden")
-    })
+    }
+    document.addEventListener("click", this.boundContextMenuClose)
   }
 
   setupDialogClickOutside() {
@@ -4732,7 +4767,7 @@ tags:
 
   // Keyboard Shortcuts
   setupKeyboardShortcuts() {
-    document.addEventListener("keydown", (event) => {
+    this.boundKeydownHandler = (event) => {
       // Ctrl/Cmd + N: New note
       if ((event.ctrlKey || event.metaKey) && event.key === "n") {
         event.preventDefault()
@@ -4821,7 +4856,8 @@ tags:
         event.preventDefault()
         this.openHelp()
       }
-    })
+    }
+    document.addEventListener("keydown", this.boundKeydownHandler)
   }
 
   // Utilities

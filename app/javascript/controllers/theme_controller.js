@@ -27,16 +27,29 @@ export default class extends Controller {
     this.setupConfigListener()
   }
 
+  disconnect() {
+    if (this.boundConfigListener) {
+      window.removeEventListener("frankmd:config-changed", this.boundConfigListener)
+    }
+    if (this.boundClickOutside) {
+      document.removeEventListener("click", this.boundClickOutside)
+    }
+    if (this.configSaveTimeout) {
+      clearTimeout(this.configSaveTimeout)
+    }
+  }
+
   // Listen for config changes (when .fed file is edited)
   setupConfigListener() {
-    window.addEventListener("frankmd:config-changed", (event) => {
+    this.boundConfigListener = (event) => {
       const { theme } = event.detail
       if (theme && theme !== this.currentThemeId) {
         this.currentThemeId = theme
         this.applyTheme()
         this.renderMenu()
       }
-    })
+    }
+    window.addEventListener("frankmd:config-changed", this.boundConfigListener)
   }
 
   toggle(event) {
@@ -150,10 +163,11 @@ export default class extends Controller {
   }
 
   setupClickOutside() {
-    document.addEventListener("click", (event) => {
+    this.boundClickOutside = (event) => {
       if (this.hasMenuTarget && !this.element.contains(event.target)) {
         this.menuTarget.classList.add("hidden")
       }
-    })
+    }
+    document.addEventListener("click", this.boundClickOutside)
   }
 }

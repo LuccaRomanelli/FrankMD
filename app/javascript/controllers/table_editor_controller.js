@@ -25,12 +25,13 @@ export default class extends Controller {
     this.selectedCellRow = 0
     this.selectedCellCol = 0
 
-    // Listen for open event from app controller
-    window.addEventListener("frankmd:open-table-editor", this.handleOpen.bind(this))
+    // Store bound handler for proper cleanup
+    this.boundHandleOpen = this.handleOpen.bind(this)
+    window.addEventListener("frankmd:open-table-editor", this.boundHandleOpen)
   }
 
   disconnect() {
-    window.removeEventListener("frankmd:open-table-editor", this.handleOpen.bind(this))
+    window.removeEventListener("frankmd:open-table-editor", this.boundHandleOpen)
   }
 
   handleOpen(event) {

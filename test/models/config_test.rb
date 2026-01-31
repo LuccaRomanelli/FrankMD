@@ -15,6 +15,13 @@ class ConfigTest < ActiveSupport::TestCase
       @original_ai_env[key] = ENV[key]
       ENV.delete(key)
     end
+
+    # Save and clear feature-related env vars (S3, YouTube, Google)
+    @original_feature_env = {}
+    feature_env_keys.each do |key|
+      @original_feature_env[key] = ENV[key]
+      ENV.delete(key)
+    end
   end
 
   def teardown
@@ -29,6 +36,15 @@ class ConfigTest < ActiveSupport::TestCase
         ENV.delete(key)
       end
     end
+
+    # Restore feature env vars
+    feature_env_keys.each do |key|
+      if @original_feature_env[key]
+        ENV[key] = @original_feature_env[key]
+      else
+        ENV.delete(key)
+      end
+    end
   end
 
   def ai_env_keys
@@ -36,6 +52,13 @@ class ConfigTest < ActiveSupport::TestCase
       OPENAI_API_KEY OPENROUTER_API_KEY ANTHROPIC_API_KEY
       GEMINI_API_KEY OLLAMA_API_BASE AI_PROVIDER AI_MODEL
       OPENAI_MODEL OPENROUTER_MODEL ANTHROPIC_MODEL GEMINI_MODEL OLLAMA_MODEL
+    ]
+  end
+
+  def feature_env_keys
+    %w[
+      AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_S3_BUCKET
+      YOUTUBE_API_KEY GOOGLE_API_KEY GOOGLE_CSE_ID
     ]
   end
 
