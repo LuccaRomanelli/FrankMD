@@ -4,7 +4,7 @@
   <circle cx="256" cy="256" r="250" fill="none" stroke="#FF6B9D" stroke-width="12"/>
   
   <!-- Frankenstein head - cute cartoon style -->
-  <g transform="translate(256, 270)">
+  <g transform="translate(256, 315) scale(1.8)">
     <!-- Flat top head shape (green skin) -->
     <path d="M-95 -100 L-95 -50 Q-95 60 0 80 Q95 60 95 -50 L95 -100 L-95 -100 Z" fill="#7CB342"/>
     <path d="M-95 -100 L-95 -50 Q-95 60 0 80 Q95 60 95 -50 L95 -100 L-95 -100 Z" fill="none" stroke="#FF6B9D" stroke-width="6"/>
