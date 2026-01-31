@@ -341,6 +341,16 @@ es:
       digits: "dígitos"
       whole_word: "palabra completa"
 
+    # Text format menu
+    text_format:
+      bold: "Negrita"
+      italic: "Cursiva"
+      strikethrough: "Tachado"
+      highlight: "Resaltado"
+      subscript: "Subíndice"
+      superscript: "Superíndice"
+      link: "Enlace"
+
   # Error messages
   errors:
     note_not_found: "Nota no encontrada"

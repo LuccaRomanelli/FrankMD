@@ -341,6 +341,16 @@ pt-PT:
       digits: "dígitos"
       whole_word: "palavra inteira"
 
+    # Menu de formatação de texto
+    text_format:
+      bold: "Negrito"
+      italic: "Itálico"
+      strikethrough: "Rasurado"
+      highlight: "Destaque"
+      subscript: "Subscrito"
+      superscript: "Sobrescrito"
+      link: "Ligação"
+
   # Mensagens de erro
   errors:
     note_not_found: "Nota não encontrada"

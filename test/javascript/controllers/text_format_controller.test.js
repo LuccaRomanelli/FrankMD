@@ -1,0 +1,478 @@
+/**
+ * @vitest-environment jsdom
+ */
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
+import { Application } from "@hotwired/stimulus"
+import TextFormatController from "../../../app/javascript/controllers/text_format_controller.js"
+
+describe("TextFormatController", () => {
+  let application, controller, element
+
+  beforeEach(() => {
+    document.body.innerHTML = `
+      <div data-controller="text-format">
+        <div data-text-format-target="menu"
+             data-action="keydown->text-format#onMenuKeydown"
+             tabindex="-1"
+             class="hidden">
+        </div>
+      </div>
+    `
+
+    element = document.querySelector('[data-controller="text-format"]')
+    application = Application.start()
+    application.register("text-format", TextFormatController)
+
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        controller = application.getControllerForElementAndIdentifier(element, "text-format")
+        resolve()
+      }, 0)
+    })
+  })
+
+  afterEach(() => {
+    application.stop()
+    vi.restoreAllMocks()
+  })
+
+  describe("static formats", () => {
+    it("has 7 format options", () => {
+      expect(TextFormatController.formats).toHaveLength(7)
+    })
+
+    it("includes bold format", () => {
+      const bold = TextFormatController.formats.find(f => f.id === "bold")
+      expect(bold).toBeDefined()
+      expect(bold.prefix).toBe("**")
+      expect(bold.suffix).toBe("**")
+      expect(bold.hotkey).toBe("B")
+    })
+
+    it("includes italic format", () => {
+      const italic = TextFormatController.formats.find(f => f.id === "italic")
+      expect(italic).toBeDefined()
+      expect(italic.prefix).toBe("*")
+      expect(italic.suffix).toBe("*")
+      expect(italic.hotkey).toBe("I")
+    })
+
+    it("includes strikethrough format", () => {
+      const strikethrough = TextFormatController.formats.find(f => f.id === "strikethrough")
+      expect(strikethrough).toBeDefined()
+      expect(strikethrough.prefix).toBe("~~")
+      expect(strikethrough.suffix).toBe("~~")
+      expect(strikethrough.hotkey).toBe("S")
+    })
+
+    it("includes highlight format", () => {
+      const highlight = TextFormatController.formats.find(f => f.id === "highlight")
+      expect(highlight).toBeDefined()
+      expect(highlight.prefix).toBe("==")
+      expect(highlight.suffix).toBe("==")
+      expect(highlight.hotkey).toBe("H")
+    })
+
+    it("includes subscript format", () => {
+      const subscript = TextFormatController.formats.find(f => f.id === "subscript")
+      expect(subscript).toBeDefined()
+      expect(subscript.prefix).toBe("~")
+      expect(subscript.suffix).toBe("~")
+      expect(subscript.hotkey).toBe("U")
+    })
+
+    it("includes superscript format", () => {
+      const superscript = TextFormatController.formats.find(f => f.id === "superscript")
+      expect(superscript).toBeDefined()
+      expect(superscript.prefix).toBe("^")
+      expect(superscript.suffix).toBe("^")
+      expect(superscript.hotkey).toBe("P")
+    })
+
+    it("includes link format", () => {
+      const link = TextFormatController.formats.find(f => f.id === "link")
+      expect(link).toBeDefined()
+      expect(link.prefix).toBe("[")
+      expect(link.suffix).toBe("](url)")
+      expect(link.hotkey).toBe("L")
+    })
+  })
+
+  describe("connect()", () => {
+    it("initializes selectedIndex to 0", () => {
+      expect(controller.selectedIndex).toBe(0)
+    })
+
+    it("initializes selectionData to null", () => {
+      expect(controller.selectionData).toBeNull()
+    })
+  })
+
+  describe("open()", () => {
+    it("shows the menu", () => {
+      const selectionData = { start: 0, end: 5, text: "hello" }
+      controller.open(selectionData, 100, 100)
+
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(false)
+    })
+
+    it("stores selection data", () => {
+      const selectionData = { start: 0, end: 5, text: "hello" }
+      controller.open(selectionData, 100, 100)
+
+      expect(controller.selectionData).toEqual(selectionData)
+    })
+
+    it("resets selectedIndex to 0", () => {
+      controller.selectedIndex = 3
+      const selectionData = { start: 0, end: 5, text: "hello" }
+      controller.open(selectionData, 100, 100)
+
+      expect(controller.selectedIndex).toBe(0)
+    })
+
+    it("renders menu items", () => {
+      const selectionData = { start: 0, end: 5, text: "hello" }
+      controller.open(selectionData, 100, 100)
+
+      const buttons = controller.menuTarget.querySelectorAll("button")
+      expect(buttons).toHaveLength(7)
+    })
+
+    it("does not open if no selection data provided", () => {
+      controller.open(null, 100, 100)
+
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
+    })
+
+    it("does not open if selection text is empty", () => {
+      const selectionData = { start: 0, end: 0, text: "" }
+      controller.open(selectionData, 100, 100)
+
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
+    })
+  })
+
+  describe("close()", () => {
+    it("hides the menu", () => {
+      const selectionData = { start: 0, end: 5, text: "hello" }
+      controller.open(selectionData, 100, 100)
+      controller.close()
+
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
+    })
+
+    it("clears selection data", () => {
+      const selectionData = { start: 0, end: 5, text: "hello" }
+      controller.open(selectionData, 100, 100)
+      controller.close()
+
+      expect(controller.selectionData).toBeNull()
+    })
+  })
+
+  describe("renderMenu()", () => {
+    beforeEach(() => {
+      const selectionData = { start: 0, end: 5, text: "hello" }
+      controller.open(selectionData, 100, 100)
+    })
+
+    it("renders a button for each format", () => {
+      const buttons = controller.menuTarget.querySelectorAll("button")
+      expect(buttons).toHaveLength(7)
+    })
+
+    it("highlights selected item with accent color", () => {
+      controller.selectedIndex = 2 // Strikethrough
+      controller.renderMenu()
+
+      const buttons = controller.menuTarget.querySelectorAll("button")
+      expect(buttons[2].className).toContain("bg-[var(--theme-accent)]")
+    })
+
+    it("shows hotkey for each item", () => {
+      const buttons = controller.menuTarget.querySelectorAll("button")
+      const hotkeys = Array.from(buttons).map(b => b.querySelector("span:last-child").textContent)
+
+      expect(hotkeys).toEqual(["B", "I", "S", "H", "U", "P", "L"])
+    })
+
+    it("underlines hotkey character in label", () => {
+      const buttons = controller.menuTarget.querySelectorAll("button")
+      const firstButton = buttons[0]
+      const label = firstButton.querySelector("span:first-child")
+
+      expect(label.innerHTML).toContain("<u>")
+    })
+  })
+
+  describe("formatLabelWithHotkey()", () => {
+    it("underlines first occurrence of hotkey character", () => {
+      const result = controller.formatLabelWithHotkey("Bold", "B")
+      expect(result).toBe("<u>B</u>old")
+    })
+
+    it("handles hotkey in middle of word", () => {
+      const result = controller.formatLabelWithHotkey("Italic", "I")
+      expect(result).toBe("<u>I</u>talic")
+    })
+
+    it("returns original label if hotkey not found", () => {
+      const result = controller.formatLabelWithHotkey("Bold", "X")
+      expect(result).toBe("Bold")
+    })
+
+    it("is case insensitive", () => {
+      const result = controller.formatLabelWithHotkey("subscript", "U")
+      expect(result).toBe("s<u>u</u>bscript")
+    })
+  })
+
+  describe("onMenuKeydown()", () => {
+    beforeEach(() => {
+      const selectionData = { start: 0, end: 5, text: "hello" }
+      controller.open(selectionData, 100, 100)
+    })
+
+    it("ArrowDown moves selection down", () => {
+      expect(controller.selectedIndex).toBe(0)
+
+      const event = new KeyboardEvent("keydown", { key: "ArrowDown" })
+      controller.onMenuKeydown(event)
+
+      expect(controller.selectedIndex).toBe(1)
+    })
+
+    it("ArrowDown wraps to top", () => {
+      controller.selectedIndex = 6
+      controller.renderMenu()
+
+      const event = new KeyboardEvent("keydown", { key: "ArrowDown" })
+      controller.onMenuKeydown(event)
+
+      expect(controller.selectedIndex).toBe(0)
+    })
+
+    it("ArrowUp moves selection up", () => {
+      controller.selectedIndex = 2
+      controller.renderMenu()
+
+      const event = new KeyboardEvent("keydown", { key: "ArrowUp" })
+      controller.onMenuKeydown(event)
+
+      expect(controller.selectedIndex).toBe(1)
+    })
+
+    it("ArrowUp wraps to bottom", () => {
+      expect(controller.selectedIndex).toBe(0)
+
+      const event = new KeyboardEvent("keydown", { key: "ArrowUp" })
+      controller.onMenuKeydown(event)
+
+      expect(controller.selectedIndex).toBe(6)
+    })
+
+    it("Enter applies selected format", () => {
+      const handler = vi.fn()
+      element.addEventListener("text-format:applied", handler)
+
+      controller.selectedIndex = 1 // Italic
+      controller.renderMenu()
+
+      const event = new KeyboardEvent("keydown", { key: "Enter" })
+      controller.onMenuKeydown(event)
+
+      expect(handler).toHaveBeenCalled()
+      const detail = handler.mock.calls[0][0].detail
+      expect(detail.format).toBe("italic")
+    })
+
+    it("Escape closes menu", () => {
+      const closedHandler = vi.fn()
+      element.addEventListener("text-format:closed", closedHandler)
+
+      const event = new KeyboardEvent("keydown", { key: "Escape" })
+      controller.onMenuKeydown(event)
+
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
+      expect(closedHandler).toHaveBeenCalled()
+    })
+
+    it("Hotkey B applies bold format", () => {
+      const handler = vi.fn()
+      element.addEventListener("text-format:applied", handler)
+
+      const event = new KeyboardEvent("keydown", { key: "B" })
+      controller.onMenuKeydown(event)
+
+      expect(handler).toHaveBeenCalled()
+      const detail = handler.mock.calls[0][0].detail
+      expect(detail.format).toBe("bold")
+    })
+
+    it("Hotkey I applies italic format", () => {
+      const handler = vi.fn()
+      element.addEventListener("text-format:applied", handler)
+
+      const event = new KeyboardEvent("keydown", { key: "I" })
+      controller.onMenuKeydown(event)
+
+      const detail = handler.mock.calls[0][0].detail
+      expect(detail.format).toBe("italic")
+    })
+
+    it("Hotkey S applies strikethrough format", () => {
+      const handler = vi.fn()
+      element.addEventListener("text-format:applied", handler)
+
+      const event = new KeyboardEvent("keydown", { key: "S" })
+      controller.onMenuKeydown(event)
+
+      const detail = handler.mock.calls[0][0].detail
+      expect(detail.format).toBe("strikethrough")
+    })
+
+    it("Hotkey L applies link format", () => {
+      const handler = vi.fn()
+      element.addEventListener("text-format:applied", handler)
+
+      const event = new KeyboardEvent("keydown", { key: "L" })
+      controller.onMenuKeydown(event)
+
+      const detail = handler.mock.calls[0][0].detail
+      expect(detail.format).toBe("link")
+    })
+
+    it("lowercase hotkey also works", () => {
+      const handler = vi.fn()
+      element.addEventListener("text-format:applied", handler)
+
+      const event = new KeyboardEvent("keydown", { key: "b" })
+      controller.onMenuKeydown(event)
+
+      const detail = handler.mock.calls[0][0].detail
+      expect(detail.format).toBe("bold")
+    })
+  })
+
+  describe("onItemHover()", () => {
+    beforeEach(() => {
+      const selectionData = { start: 0, end: 5, text: "hello" }
+      controller.open(selectionData, 100, 100)
+    })
+
+    it("updates selection on hover", () => {
+      const event = { currentTarget: { dataset: { index: "3" } } }
+      controller.onItemHover(event)
+
+      expect(controller.selectedIndex).toBe(3)
+    })
+
+    it("does not update if hovering same item", () => {
+      controller.selectedIndex = 3
+      const renderSpy = vi.spyOn(controller, "renderMenu")
+
+      const event = { currentTarget: { dataset: { index: "3" } } }
+      controller.onItemHover(event)
+
+      // renderMenu should not be called if index is same
+      expect(renderSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("onItemClick()", () => {
+    beforeEach(() => {
+      const selectionData = { start: 0, end: 5, text: "hello" }
+      controller.open(selectionData, 100, 100)
+    })
+
+    it("applies format on click", () => {
+      const handler = vi.fn()
+      element.addEventListener("text-format:applied", handler)
+
+      const event = { currentTarget: { dataset: { index: "2" } } }
+      controller.onItemClick(event)
+
+      expect(handler).toHaveBeenCalled()
+      const detail = handler.mock.calls[0][0].detail
+      expect(detail.format).toBe("strikethrough")
+    })
+  })
+
+  describe("applyFormat()", () => {
+    beforeEach(() => {
+      const selectionData = { start: 0, end: 5, text: "hello" }
+      controller.open(selectionData, 100, 100)
+    })
+
+    it("dispatches applied event with format details", () => {
+      const handler = vi.fn()
+      element.addEventListener("text-format:applied", handler)
+
+      const format = { id: "bold", prefix: "**", suffix: "**" }
+      controller.applyFormat(format)
+
+      expect(handler).toHaveBeenCalled()
+      const detail = handler.mock.calls[0][0].detail
+      expect(detail.format).toBe("bold")
+      expect(detail.prefix).toBe("**")
+      expect(detail.suffix).toBe("**")
+      expect(detail.selectionData).toEqual({ start: 0, end: 5, text: "hello" })
+    })
+
+    it("closes menu after applying format", () => {
+      const format = { id: "bold", prefix: "**", suffix: "**" }
+      controller.applyFormat(format)
+
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
+    })
+
+    it("does nothing if format is null", () => {
+      const handler = vi.fn()
+      element.addEventListener("text-format:applied", handler)
+
+      controller.applyFormat(null)
+
+      expect(handler).not.toHaveBeenCalled()
+    })
+
+    it("does nothing if selection data is null", () => {
+      const handler = vi.fn()
+      element.addEventListener("text-format:applied", handler)
+
+      controller.selectionData = null
+      const format = { id: "bold", prefix: "**", suffix: "**" }
+      controller.applyFormat(format)
+
+      expect(handler).not.toHaveBeenCalled()
+    })
+  })
+
+  describe("getFormat()", () => {
+    it("returns format by id", () => {
+      const format = controller.getFormat("bold")
+      expect(format).toBeDefined()
+      expect(format.id).toBe("bold")
+    })
+
+    it("returns undefined for unknown id", () => {
+      const format = controller.getFormat("unknown")
+      expect(format).toBeUndefined()
+    })
+  })
+
+  describe("positionMenu()", () => {
+    beforeEach(() => {
+      // Set up menu with known dimensions
+      controller.menuTarget.style.width = "180px"
+      controller.menuTarget.style.height = "200px"
+    })
+
+    it("positions menu at specified coordinates", () => {
+      controller.positionMenu(100, 200)
+
+      expect(controller.menuTarget.style.left).toBe("100px")
+      expect(controller.menuTarget.style.top).toBe("200px")
+    })
+  })
+})

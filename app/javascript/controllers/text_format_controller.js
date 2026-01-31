@@ -1,0 +1,219 @@
+import { Controller } from "@hotwired/stimulus"
+
+// Text Format Controller
+// Handles text formatting context menu for inline markdown formatting
+// Dispatches text-format:applied event with { format, prefix, suffix, selectionData }
+
+export default class extends Controller {
+  static targets = ["menu"]
+
+  static formats = [
+    { id: "bold", label: "Bold", hotkey: "B", prefix: "**", suffix: "**" },
+    { id: "italic", label: "Italic", hotkey: "I", prefix: "*", suffix: "*" },
+    { id: "strikethrough", label: "Strikethrough", hotkey: "S", prefix: "~~", suffix: "~~" },
+    { id: "highlight", label: "Highlight", hotkey: "H", prefix: "==", suffix: "==" },
+    { id: "subscript", label: "Subscript", hotkey: "U", prefix: "~", suffix: "~" },
+    { id: "superscript", label: "Superscript", hotkey: "P", prefix: "^", suffix: "^" },
+    { id: "link", label: "Link", hotkey: "L", prefix: "[", suffix: "](url)" }
+  ]
+
+  connect() {
+    this.selectedIndex = 0
+    this.selectionData = null
+    this.setupCloseOnClickOutside()
+  }
+
+  disconnect() {
+    if (this.boundClickOutside) {
+      document.removeEventListener("mousedown", this.boundClickOutside)
+    }
+  }
+
+  setupCloseOnClickOutside() {
+    this.boundClickOutside = (event) => {
+      if (!this.hasMenuTarget) return
+      if (this.menuTarget.classList.contains("hidden")) return
+      if (!this.menuTarget.contains(event.target)) {
+        this.close()
+      }
+    }
+    document.addEventListener("mousedown", this.boundClickOutside)
+  }
+
+  // Open the menu at specified position with selection data
+  open(selectionData, x, y) {
+    if (!this.hasMenuTarget) return
+    if (!selectionData || !selectionData.text) return
+
+    this.selectionData = selectionData
+    this.selectedIndex = 0
+    this.renderMenu()
+    this.positionMenu(x, y)
+    this.menuTarget.classList.remove("hidden")
+    this.menuTarget.focus()
+  }
+
+  // Close the menu
+  close() {
+    if (!this.hasMenuTarget) return
+    this.menuTarget.classList.add("hidden")
+    this.selectionData = null
+  }
+
+  // Position menu with viewport boundary checks
+  positionMenu(x, y) {
+    if (!this.hasMenuTarget) return
+
+    const menu = this.menuTarget
+    menu.style.left = `${x}px`
+    menu.style.top = `${y}px`
+
+    // Wait for render to get actual dimensions
+    requestAnimationFrame(() => {
+      const rect = menu.getBoundingClientRect()
+      const padding = 10
+
+      // Adjust if menu goes off right edge
+      if (rect.right > window.innerWidth - padding) {
+        menu.style.left = `${window.innerWidth - rect.width - padding}px`
+      }
+
+      // Adjust if menu goes off bottom edge
+      if (rect.bottom > window.innerHeight - padding) {
+        menu.style.top = `${y - rect.height}px`
+      }
+
+      // Ensure menu stays on screen (left/top)
+      const newRect = menu.getBoundingClientRect()
+      if (newRect.left < padding) {
+        menu.style.left = `${padding}px`
+      }
+      if (newRect.top < padding) {
+        menu.style.top = `${padding}px`
+      }
+    })
+  }
+
+  // Render menu items with hotkey underlines
+  renderMenu() {
+    if (!this.hasMenuTarget) return
+
+    const items = this.constructor.formats.map((format, index) => {
+      const isSelected = index === this.selectedIndex
+      const labelWithHotkey = this.formatLabelWithHotkey(format.label, format.hotkey)
+
+      return `
+        <button
+          type="button"
+          class="w-full px-3 py-1.5 text-left text-sm flex items-center justify-between gap-4 ${
+            isSelected
+              ? "bg-[var(--theme-accent)] text-[var(--theme-accent-text)]"
+              : "hover:bg-[var(--theme-bg-hover)] text-[var(--theme-text-primary)]"
+          }"
+          data-action="click->text-format#onItemClick mouseenter->text-format#onItemHover"
+          data-index="${index}"
+          data-format-id="${format.id}"
+        >
+          <span>${labelWithHotkey}</span>
+          <span class="text-xs ${isSelected ? "opacity-80" : "text-[var(--theme-text-muted)]"}">${format.hotkey}</span>
+        </button>
+      `
+    }).join("")
+
+    this.menuTarget.innerHTML = items
+  }
+
+  // Format label with underlined hotkey character
+  formatLabelWithHotkey(label, hotkey) {
+    const lowerLabel = label.toLowerCase()
+    const lowerHotkey = hotkey.toLowerCase()
+    const index = lowerLabel.indexOf(lowerHotkey)
+
+    if (index === -1) {
+      return label
+    }
+
+    const before = label.substring(0, index)
+    const char = label.charAt(index)
+    const after = label.substring(index + 1)
+
+    return `${before}<u>${char}</u>${after}`
+  }
+
+  // Handle keydown events on the menu
+  onMenuKeydown(event) {
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault()
+        this.selectedIndex = (this.selectedIndex + 1) % this.constructor.formats.length
+        this.renderMenu()
+        break
+
+      case "ArrowUp":
+        event.preventDefault()
+        this.selectedIndex = (this.selectedIndex - 1 + this.constructor.formats.length) % this.constructor.formats.length
+        this.renderMenu()
+        break
+
+      case "Enter":
+        event.preventDefault()
+        this.applyFormat(this.constructor.formats[this.selectedIndex])
+        break
+
+      case "Escape":
+        event.preventDefault()
+        this.close()
+        // Dispatch event to return focus to textarea
+        this.dispatch("closed")
+        break
+
+      default:
+        // Check for hotkey press
+        const hotkey = event.key.toUpperCase()
+        const format = this.constructor.formats.find(f => f.hotkey === hotkey)
+        if (format) {
+          event.preventDefault()
+          this.applyFormat(format)
+        }
+        break
+    }
+  }
+
+  // Handle mouse hover on menu item
+  onItemHover(event) {
+    const index = parseInt(event.currentTarget.dataset.index, 10)
+    if (!isNaN(index) && index !== this.selectedIndex) {
+      this.selectedIndex = index
+      this.renderMenu()
+    }
+  }
+
+  // Handle click on menu item
+  onItemClick(event) {
+    const index = parseInt(event.currentTarget.dataset.index, 10)
+    if (!isNaN(index)) {
+      this.applyFormat(this.constructor.formats[index])
+    }
+  }
+
+  // Apply the selected format and dispatch event
+  applyFormat(format) {
+    if (!format || !this.selectionData) return
+
+    this.dispatch("applied", {
+      detail: {
+        format: format.id,
+        prefix: format.prefix,
+        suffix: format.suffix,
+        selectionData: this.selectionData
+      }
+    })
+
+    this.close()
+  }
+
+  // Get a format by its ID
+  getFormat(formatId) {
+    return this.constructor.formats.find(f => f.id === formatId)
+  }
+}

@@ -341,6 +341,16 @@ en:
       digits: "digits"
       whole_word: "whole word"
 
+    # Text format menu
+    text_format:
+      bold: "Bold"
+      italic: "Italic"
+      strikethrough: "Strikethrough"
+      highlight: "Highlight"
+      subscript: "Subscript"
+      superscript: "Superscript"
+      link: "Link"
+
   # Error messages
   errors:
     note_not_found: "Note not found"

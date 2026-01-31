@@ -341,6 +341,16 @@ ja:
       digits: "数字"
       whole_word: "単語全体"
 
+    # テキストフォーマットメニュー
+    text_format:
+      bold: "太字"
+      italic: "斜体"
+      strikethrough: "取り消し線"
+      highlight: "ハイライト"
+      subscript: "下付き文字"
+      superscript: "上付き文字"
+      link: "リンク"
+
   # Error messages
   errors:
     note_not_found: "ノートが見つかりません"

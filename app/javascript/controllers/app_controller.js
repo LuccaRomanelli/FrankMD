@@ -1710,8 +1710,174 @@ export default class extends Controller {
         event.preventDefault()
         this.openHelp()
       }
+
+      // Ctrl/Cmd + M: Open text format menu
+      if ((event.ctrlKey || event.metaKey) && event.key === "m") {
+        event.preventDefault()
+        this.openTextFormatMenu()
+      }
     }
     document.addEventListener("keydown", this.boundKeydownHandler)
+  }
+
+  // Text Format Menu
+  // Get the text format controller instance
+  getTextFormatController() {
+    const textFormatElement = document.querySelector('[data-controller~="text-format"]')
+    if (textFormatElement) {
+      return this.application.getControllerForElementAndIdentifier(textFormatElement, "text-format")
+    }
+    return null
+  }
+
+  // Open text format menu via Ctrl+M
+  openTextFormatMenu() {
+    if (!this.hasTextareaTarget) return
+    if (!this.isMarkdownFile()) return
+
+    const textarea = this.textareaTarget
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+
+    // Only open if text is selected
+    if (start === end) return
+
+    const selectedText = textarea.value.substring(start, end)
+    if (!selectedText.trim()) return
+
+    const selectionData = {
+      start,
+      end,
+      text: selectedText
+    }
+
+    // Calculate position based on cursor/selection
+    // Use the caret position to place the menu
+    const { x, y } = this.getCaretCoordinates(textarea, end)
+
+    const textFormatController = this.getTextFormatController()
+    if (textFormatController) {
+      textFormatController.open(selectionData, x, y + 20) // Offset below cursor
+    }
+  }
+
+  // Handle right-click on textarea to show text format menu
+  onTextareaContextMenu(event) {
+    if (!this.hasTextareaTarget) return
+    if (!this.isMarkdownFile()) return
+
+    const textarea = this.textareaTarget
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+
+    // Only show custom menu if text is selected
+    if (start === end) return // Let default context menu show
+
+    const selectedText = textarea.value.substring(start, end)
+    if (!selectedText.trim()) return // Let default context menu show
+
+    // Prevent default context menu
+    event.preventDefault()
+
+    const selectionData = {
+      start,
+      end,
+      text: selectedText
+    }
+
+    const textFormatController = this.getTextFormatController()
+    if (textFormatController) {
+      textFormatController.open(selectionData, event.clientX, event.clientY)
+    }
+  }
+
+  // Get approximate caret coordinates in the textarea
+  getCaretCoordinates(textarea, position) {
+    // Create a mirror div to measure text position
+    const mirror = document.createElement("div")
+    const style = window.getComputedStyle(textarea)
+
+    // Copy relevant styles
+    mirror.style.cssText = `
+      position: absolute;
+      top: -9999px;
+      left: -9999px;
+      width: ${textarea.clientWidth}px;
+      height: auto;
+      font-family: ${style.fontFamily};
+      font-size: ${style.fontSize};
+      font-weight: ${style.fontWeight};
+      line-height: ${style.lineHeight};
+      padding: ${style.padding};
+      border: ${style.border};
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    `
+
+    // Get text before position
+    const textBefore = textarea.value.substring(0, position)
+    mirror.textContent = textBefore
+
+    // Add a marker span at the position
+    const marker = document.createElement("span")
+    marker.textContent = "|"
+    mirror.appendChild(marker)
+
+    document.body.appendChild(mirror)
+
+    // Get textarea's position on screen
+    const textareaRect = textarea.getBoundingClientRect()
+
+    // Calculate position relative to viewport
+    const x = textareaRect.left + marker.offsetLeft - textarea.scrollLeft
+    const y = textareaRect.top + marker.offsetTop - textarea.scrollTop
+
+    document.body.removeChild(mirror)
+
+    return { x, y }
+  }
+
+  // Handle text format applied event
+  onTextFormatApplied(event) {
+    if (!this.hasTextareaTarget) return
+
+    const { prefix, suffix, selectionData } = event.detail
+    if (!selectionData) return
+
+    const textarea = this.textareaTarget
+    const { start, end, text } = selectionData
+
+    // Build the formatted text
+    const formattedText = prefix + text + suffix
+
+    // Replace the selected text
+    const before = textarea.value.substring(0, start)
+    const after = textarea.value.substring(end)
+    textarea.value = before + formattedText + after
+
+    // Calculate new cursor position
+    // For link format, select "url" for easy replacement
+    if (prefix === "[" && suffix === "](url)") {
+      const urlStart = start + prefix.length + text.length + 2 // After ](
+      const urlEnd = urlStart + 3 // Select "url"
+      textarea.setSelectionRange(urlStart, urlEnd)
+    } else {
+      // Position cursor after the formatted text
+      const newPosition = start + formattedText.length
+      textarea.setSelectionRange(newPosition, newPosition)
+    }
+
+    textarea.focus()
+    this.scheduleAutoSave()
+    this.updatePreview()
+  }
+
+  // Handle text format menu closed event (return focus to textarea)
+  onTextFormatClosed() {
+    if (this.hasTextareaTarget) {
+      this.textareaTarget.focus()
+    }
   }
 
   // Utilities

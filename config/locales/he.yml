@@ -341,6 +341,16 @@ he:
       digits: "ספרות"
       whole_word: "מילה שלמה"
 
+    # תפריט עיצוב טקסט
+    text_format:
+      bold: "מודגש"
+      italic: "נטוי"
+      strikethrough: "קו חוצה"
+      highlight: "הדגשה"
+      subscript: "כתב תחתי"
+      superscript: "כתב עילי"
+      link: "קישור"
+
   # הודעות שגיאה
   errors:
     note_not_found: "ההערה לא נמצאה"
