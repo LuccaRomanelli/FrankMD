@@ -8,11 +8,11 @@ export default class extends Controller {
   static themes = [
     { id: "light", name: "Light", icon: "sun" },
     { id: "dark", name: "Dark", icon: "moon" },
-    { id: "cappuccino", name: "Cappuccino", icon: "palette" },
     { id: "catppuccin", name: "Catppuccin", icon: "palette" },
     { id: "catppuccin-latte", name: "Catppuccin Latte", icon: "palette" },
     { id: "ethereal", name: "Ethereal", icon: "palette" },
     { id: "everforest", name: "Everforest", icon: "palette" },
+    { id: "flexoki-light", name: "Flexoki Light", icon: "palette" },
     { id: "gruvbox", name: "Gruvbox", icon: "palette" },
     { id: "hackerman", name: "Hackerman", icon: "palette" },
     { id: "kanagawa", name: "Kanagawa", icon: "palette" },
@@ -111,7 +111,7 @@ export default class extends Controller {
     document.documentElement.setAttribute("data-theme", themeId)
 
     // Also set dark class for Tailwind dark: variants
-    const isDarkTheme = !["light", "solarized-light", "catppuccin-latte"].includes(themeId)
+    const isDarkTheme = !["light", "solarized-light", "catppuccin-latte", "rose-pine", "flexoki-light"].includes(themeId)
     document.documentElement.classList.toggle("dark", isDarkTheme)
 
     // Update current theme display

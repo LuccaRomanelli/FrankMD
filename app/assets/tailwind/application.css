@@ -51,11 +51,11 @@
 /* Theme imports - Light and Dark first, then alphabetical */
 @import "./themes/light.css";
 @import "./themes/dark.css";
-@import "./themes/cappuccino.css";
 @import "./themes/catppuccin.css";
 @import "./themes/catppuccin-latte.css";
 @import "./themes/ethereal.css";
 @import "./themes/everforest.css";
+@import "./themes/flexoki-light.css";
 @import "./themes/gruvbox.css";
 @import "./themes/hackerman.css";
 @import "./themes/kanagawa.css";

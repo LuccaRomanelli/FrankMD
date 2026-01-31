@@ -1,29 +1,29 @@
-/* Ethereal - Soft, dreamy colors with mystical vibes */
+/* Ethereal - Deep space with warm peachy tones */
 [data-theme="ethereal"] {
-  --theme-bg-primary: #1a1a2e;
-  --theme-bg-secondary: #16162a;
-  --theme-bg-tertiary: #252547;
-  --theme-bg-hover: #353560;
-  --theme-text-primary: #e4e4f5;
-  --theme-text-secondary: #c9c9e0;
-  --theme-text-muted: #7a7a9d;
-  --theme-text-faint: #5a5a7a;
-  --theme-border: #353560;
-  --theme-accent: #a78bfa;
-  --theme-accent-hover: #c4b5fd;
-  --theme-accent-text: #1a1a2e;
-  --theme-selection: #4c4c75;
-  --theme-selection-text: #e4e4f5;
-  --theme-scrollbar: #4c4c75;
-  --theme-scrollbar-hover: #5e5e8a;
-  --theme-success: #86efac;
-  --theme-warning: #fcd34d;
-  --theme-error: #fb7185;
-  --theme-code-bg: #252547;
-  --theme-heading-1: #c4b5fd;
-  --theme-heading-2: #93c5fd;
-  --theme-heading-3: #a5f3fc;
-  --theme-folder-icon: #a78bfa;
-  --theme-file-icon: #7a7a9d;
-  --theme-config-icon: #fcd34d;
+  --theme-bg-primary: #060b1e;
+  --theme-bg-secondary: #0a1020;
+  --theme-bg-tertiary: #101830;
+  --theme-bg-hover: #1a2545;
+  --theme-text-primary: #ffcead;
+  --theme-text-secondary: #f99957;
+  --theme-text-muted: #6d7db6;
+  --theme-text-faint: #4a5580;
+  --theme-border: #1a2545;
+  --theme-accent: #7d82d9;
+  --theme-accent-hover: #9498e5;
+  --theme-accent-text: #060b1e;
+  --theme-selection: #ffcead;
+  --theme-selection-text: #060b1e;
+  --theme-scrollbar: #1a2545;
+  --theme-scrollbar-hover: #2a3560;
+  --theme-success: #92a593;
+  --theme-warning: #e9bb4f;
+  --theme-error: #ed5b5a;
+  --theme-code-bg: #101830;
+  --theme-heading-1: #c2c4f0;
+  --theme-heading-2: #a3bfd1;
+  --theme-heading-3: #c89dc1;
+  --theme-folder-icon: #7d82d9;
+  --theme-file-icon: #6d7db6;
+  --theme-config-icon: #e9bb4f;
 }

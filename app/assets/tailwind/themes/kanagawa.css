@@ -10,14 +10,14 @@
   --theme-text-faint: #54546d;
   --theme-border: #363646;
   --theme-accent: #7e9cd8;
-  --theme-accent-hover: #9cabca;
+  --theme-accent-hover: #7fb4ca;
   --theme-accent-text: #1f1f28;
   --theme-selection: #2d4f67;
-  --theme-selection-text: #dcd7ba;
+  --theme-selection-text: #c8c093;
   --theme-scrollbar: #363646;
   --theme-scrollbar-hover: #54546d;
   --theme-success: #98bb6c;
-  --theme-warning: #dca561;
+  --theme-warning: #e6c384;
   --theme-error: #e82424;
   --theme-code-bg: #2a2a37;
   --theme-heading-1: #957fb8;
@@ -25,5 +25,5 @@
   --theme-heading-3: #7fb4ca;
   --theme-folder-icon: #7e9cd8;
   --theme-file-icon: #727169;
-  --theme-config-icon: #dca561;
+  --theme-config-icon: #e6c384;
 }
