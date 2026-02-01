@@ -877,9 +877,10 @@ export default class extends Controller {
     let endPos = 0
 
     // Check if cursor is in existing table
-    if (this.hasTextareaTarget) {
-      const text = this.textareaTarget.value
-      const cursorPos = this.textareaTarget.selectionStart
+    const codemirrorController = this.getCodemirrorController()
+    if (codemirrorController) {
+      const text = codemirrorController.getValue()
+      const cursorPos = codemirrorController.getCursorPosition().offset
       const tableInfo = findTableAtPosition(text, cursorPos)
 
       if (tableInfo) {
@@ -1103,6 +1104,8 @@ export default class extends Controller {
 
   // Reload .fed content if it's open in the editor
   async reloadCurrentConfigFile() {
+    if (this.currentFile !== ".fed") return
+
     try {
       const response = await fetch(`/notes/${encodePath(".fed")}`, {
         headers: { "Accept": "application/json" }
@@ -1110,14 +1113,16 @@ export default class extends Controller {
 
       if (response.ok) {
         const data = await response.json()
-        if (this.hasTextareaTarget && this.currentFile === ".fed") {
+        const codemirrorController = this.getCodemirrorController()
+        if (codemirrorController) {
           // Save cursor position
-          const cursorPos = this.textareaTarget.selectionStart
+          const cursorPos = codemirrorController.getCursorPosition().offset
           // Update content
-          this.textareaTarget.value = data.content || ""
+          codemirrorController.setValue(data.content || "")
           // Restore cursor position (or end of file if content is shorter)
-          const newCursorPos = Math.min(cursorPos, this.textareaTarget.value.length)
-          this.textareaTarget.setSelectionRange(newCursorPos, newCursorPos)
+          const newContent = codemirrorController.getValue()
+          const newCursorPos = Math.min(cursorPos, newContent.length)
+          codemirrorController.setSelection(newCursorPos, newCursorPos)
         }
       }
     } catch (error) {
@@ -1523,7 +1528,8 @@ export default class extends Controller {
       return
     }
 
-    const text = this.textareaTarget.value
+    const codemirrorController = this.getCodemirrorController()
+    const text = codemirrorController ? codemirrorController.getValue() : ""
     if (!text.trim()) {
       alert(window.t("errors.no_text_to_check"))
       return
