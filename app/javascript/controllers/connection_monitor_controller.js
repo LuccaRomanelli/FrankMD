@@ -2,26 +2,22 @@ import { Controller } from "@hotwired/stimulus"
 
 // Connection Monitor Controller
 // Monitors server connectivity and prevents editing when offline to avoid data loss
-// Polls /up endpoint, shows warning banner and disables editor when offline
-// Uses exponential backoff when offline to reduce console noise
+// Polls /up endpoint every 5 seconds, shows warning banner and disables editor when offline
 
 export default class extends Controller {
   static targets = ["banner", "textarea"]
 
   static values = {
-    interval: { type: Number, default: 5000 },      // Normal polling interval
-    maxInterval: { type: Number, default: 30000 },  // Max interval when offline
+    interval: { type: Number, default: 5000 },
     timeout: { type: Number, default: 3000 }
   }
 
   connect() {
     this.isOnline = true
     this.checkInProgress = false
-    this.currentInterval = this.intervalValue
-    this.failureCount = 0
 
     // Start monitoring
-    this.scheduleNextCheck()
+    this.startMonitoring()
 
     // Also listen for browser online/offline events as early warning
     this.boundOnline = () => this.checkConnection()
@@ -36,17 +32,20 @@ export default class extends Controller {
     window.removeEventListener("offline", this.boundOffline)
   }
 
-  scheduleNextCheck() {
-    this.stopMonitoring()
-    this.monitorTimeout = setTimeout(() => {
+  startMonitoring() {
+    // Initial check
+    this.checkConnection()
+
+    // Periodic checks
+    this.monitorInterval = setInterval(() => {
       this.checkConnection()
-    }, this.currentInterval)
+    }, this.intervalValue)
   }
 
   stopMonitoring() {
-    if (this.monitorTimeout) {
-      clearTimeout(this.monitorTimeout)
-      this.monitorTimeout = null
+    if (this.monitorInterval) {
+      clearInterval(this.monitorInterval)
+      this.monitorInterval = null
     }
   }
 
@@ -74,51 +73,32 @@ export default class extends Controller {
       }
     } catch (error) {
       // Network error or timeout
-      if (!this.isOnline) {
-        // Only log periodically when already offline to reduce noise
-        if (this.failureCount % 6 === 0) { // ~every 30s with backoff
-          console.info("[FrankMD] Server unavailable - editing disabled. Will auto-resume when connection returns.")
-        }
-      } else {
+      if (this.isOnline) {
         console.warn("[FrankMD] Connection to server lost. Disabling editor to prevent data loss.")
       }
       this.handleOffline()
     } finally {
       this.checkInProgress = false
-      this.scheduleNextCheck()
     }
   }
 
   handleOnline() {
-    const wasOffline = !this.isOnline
-    this.isOnline = true
-    this.failureCount = 0
-    this.currentInterval = this.intervalValue // Reset to normal interval
+    if (this.isOnline) return // Already online
 
-    if (wasOffline) {
-      console.info("[FrankMD] Connection restored. Editor re-enabled.")
-      this.hideBanner()
-      this.enableEditor()
-      this.dispatch("online")
-    }
+    console.info("[FrankMD] Connection restored. Editor re-enabled.")
+    this.isOnline = true
+    this.hideBanner()
+    this.enableEditor()
+    this.dispatch("online")
   }
 
   handleOffline() {
-    const wasOnline = this.isOnline
+    if (!this.isOnline) return // Already offline
+
     this.isOnline = false
-    this.failureCount++
-
-    // Exponential backoff: double interval each failure, up to max
-    this.currentInterval = Math.min(
-      this.intervalValue * Math.pow(2, this.failureCount),
-      this.maxIntervalValue
-    )
-
-    if (wasOnline) {
-      this.showBanner()
-      this.disableEditor()
-      this.dispatch("offline")
-    }
+    this.showBanner()
+    this.disableEditor()
+    this.dispatch("offline")
   }
 
   showBanner() {
