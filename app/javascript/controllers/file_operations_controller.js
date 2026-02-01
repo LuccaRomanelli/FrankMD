@@ -207,15 +207,19 @@ export default class extends Controller {
   }
 
   async createNote(name, parent, template) {
-    // Add .md extension if not present
-    let fileName = name.endsWith(".md") ? name : `${name}.md`
-    const path = parent ? `${parent}/${fileName}` : fileName
-
-    // Generate initial content based on template
+    let path
     let content = ""
+
     if (template === "hugo") {
+      // Hugo posts use date-based path structure: YYYY/MM/DD/slug/index.md
       const title = name.replace(/\.md$/, "")
-      content = generateHugoBlogPost(title)
+      const hugoPost = generateHugoBlogPost(title)
+      path = parent ? `${parent}/${hugoPost.notePath}` : hugoPost.notePath
+      content = hugoPost.content
+    } else {
+      // Regular notes use simple filename
+      const fileName = name.endsWith(".md") ? name : `${name}.md`
+      path = parent ? `${parent}/${fileName}` : fileName
     }
 
     const response = await fetch(`/notes/${encodePath(path)}`, {
