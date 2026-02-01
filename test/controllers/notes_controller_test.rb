@@ -16,7 +16,7 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
   test "index renders the main page" do
     get root_url
     assert_response :success
-    assert_select "div[data-controller='app']"
+    assert_select "div[data-controller~='app']"
   end
 
   test "index includes tree data" do
@@ -287,7 +287,7 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     # Should render the SPA
-    assert_select "div[data-controller='app']"
+    assert_select "div[data-controller~='app']"
 
     # Should include initial path data attribute
     assert_match "bookmarked.md", response.body
@@ -301,7 +301,7 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     get note_url(path: "2026/01/30/my-post/index.md")
     assert_response :success
 
-    assert_select "div[data-controller='app']"
+    assert_select "div[data-controller~='app']"
     assert_match "2026/01/30/my-post/index.md", response.body
     assert_match "Hugo Post", response.body
   end
@@ -311,7 +311,7 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     # Should still render the SPA
-    assert_select "div[data-controller='app']"
+    assert_select "div[data-controller~='app']"
 
     # Initial note should indicate not found (HTML-escaped JSON)
     assert_match(/no longer exists|was deleted/i, response.body)
@@ -325,7 +325,7 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     get root_url(file: "from_param.md")
     assert_response :success
 
-    assert_select "div[data-controller='app']"
+    assert_select "div[data-controller~='app']"
     assert_match "From Param", response.body
   end
 end

@@ -117,6 +117,11 @@ pt-BR:
     type_to_search_regex: "Digite para buscar no conteúdo dos arquivos (suporta regex)"
     processing: "Processando..."
 
+  # Status de conexão
+  connection:
+    offline_message: "Conexão perdida. Edição desabilitada até a conexão ser restaurada."
+    retry: "Tentar novamente"
+
   # Títulos e conteúdo dos diálogos
   dialogs:
     # Diálogo de renomear
