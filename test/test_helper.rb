@@ -1,5 +1,18 @@
 ENV["RAILS_ENV"] ||= "test"
 ENV["FRANKMD_LOCALE"] ||= "en"  # Force English locale for tests
+
+# SimpleCov must be loaded before any application code
+require "simplecov"
+SimpleCov.start "rails" do
+  add_filter "/test/"
+  add_filter "/config/"
+  add_filter "/db/"
+  enable_coverage :branch
+  # Support for parallel tests
+  command_name "minitest-#{$$}"
+  minimum_coverage 0
+end
+
 require_relative "../config/environment"
 require "rails/test_help"
 require "fileutils"
