@@ -162,4 +162,53 @@ describe("StatsPanelController", () => {
       // but we can verify the controller handles disconnect gracefully)
     })
   })
+
+  describe("content length caching", () => {
+    it("initializes _lastContentLength to -1", () => {
+      expect(controller._lastContentLength).toBe(-1)
+    })
+
+    it("skips stats recalculation when content length unchanged", () => {
+      // First update with 5-character text
+      controller.update("Hello")
+      expect(controller.wordsTarget.textContent).toBe("1")
+
+      // Store reference to current textContent calls
+      const wordsSetter = vi.spyOn(controller.wordsTarget, "textContent", "set")
+
+      // Second update with same length but different content
+      // Since both "Hello" and "World" are 5 characters, stats should be skipped
+      controller.update("World")
+
+      // Setter should not be called because content length is the same
+      expect(wordsSetter).not.toHaveBeenCalled()
+    })
+
+    it("recalculates stats when content length changes", () => {
+      // First update
+      controller.update("Hello")
+      expect(controller._lastContentLength).toBe(5)
+
+      // Second update with different length
+      controller.update("Hello World")
+      expect(controller._lastContentLength).toBe(11)
+      expect(controller.wordsTarget.textContent).toBe("2")
+    })
+
+    it("always updates line position regardless of content length", () => {
+      // First update
+      controller.update("Hello", { currentLine: 1, totalLines: 1 })
+
+      // Add line position target if not present
+      if (!controller.hasLinePositionTarget) {
+        const span = document.createElement("span")
+        span.setAttribute("data-stats-panel-target", "linePosition")
+        controller.panelTarget.appendChild(span)
+      }
+
+      // Second update with same content but different cursor info
+      controller.update("Hello", { currentLine: 5, totalLines: 10 })
+      expect(controller.linePositionTarget.textContent).toBe("5/10")
+    })
+  })
 })

@@ -17,6 +17,8 @@ export default class extends Controller {
 
   connect() {
     this.updateTimeout = null
+    this._lastContentLength = -1 // Cache to skip identical updates
+    this._lastWordCount = 0
   }
 
   disconnect() {
@@ -48,23 +50,35 @@ export default class extends Controller {
   }
 
   // Update stats display with text content
+  // Optimized to skip recalculation when content length hasn't changed
   update(text, cursorInfo) {
     if (!this.hasPanelTarget) return
 
-    const stats = calculateStats(text || "")
+    const content = text || ""
+    const contentLength = content.length
 
-    if (this.hasWordsTarget) {
-      this.wordsTarget.textContent = stats.wordCount.toLocaleString()
+    // Skip expensive stats calculation if content length unchanged
+    // (length change is a good proxy for content change, much faster than full comparison)
+    if (contentLength !== this._lastContentLength) {
+      this._lastContentLength = contentLength
+      const stats = calculateStats(content)
+      this._lastWordCount = stats.wordCount
+
+      if (this.hasWordsTarget) {
+        this.wordsTarget.textContent = stats.wordCount.toLocaleString()
+      }
+      if (this.hasCharsTarget) {
+        this.charsTarget.textContent = stats.charCount.toLocaleString()
+      }
+      if (this.hasSizeTarget) {
+        this.sizeTarget.textContent = formatFileSize(stats.byteSize)
+      }
+      if (this.hasReadTimeTarget) {
+        this.readTimeTarget.textContent = formatReadTime(stats.readTimeMinutes)
+      }
     }
-    if (this.hasCharsTarget) {
-      this.charsTarget.textContent = stats.charCount.toLocaleString()
-    }
-    if (this.hasSizeTarget) {
-      this.sizeTarget.textContent = formatFileSize(stats.byteSize)
-    }
-    if (this.hasReadTimeTarget) {
-      this.readTimeTarget.textContent = formatReadTime(stats.readTimeMinutes)
-    }
+
+    // Always update line position (cheap operation)
     if (this.hasLinePositionTarget && cursorInfo) {
       this.linePositionTarget.textContent = `${cursorInfo.currentLine}/${cursorInfo.totalLines}`
     }

@@ -1,8 +1,12 @@
 // Stats utility functions - Pure functions for document statistics
 // Extracted for testability
 
+// Reusable TextEncoder for efficient byte size calculation
+const textEncoder = new TextEncoder()
+
 /**
  * Calculate document statistics
+ * Optimized to avoid creating large intermediate arrays for big documents
  * @param {string} text - Document text
  * @returns {object} - { wordCount, charCount, byteSize, readTimeMinutes }
  */
@@ -16,15 +20,16 @@ export function calculateStats(text) {
     }
   }
 
-  // Word count
-  const words = text.trim().split(/\s+/).filter(w => w.length > 0)
-  const wordCount = words.length
+  // Word count - use match instead of split to avoid creating array
+  // This is more memory efficient for large documents
+  const wordMatches = text.match(/\S+/g)
+  const wordCount = wordMatches ? wordMatches.length : 0
 
   // Character count
   const charCount = text.length
 
-  // File size (bytes)
-  const byteSize = new Blob([text]).size
+  // File size (bytes) - use TextEncoder instead of Blob for efficiency
+  const byteSize = textEncoder.encode(text).length
 
   // Estimated reading time (average 200 words per minute)
   const wordsPerMinute = 200

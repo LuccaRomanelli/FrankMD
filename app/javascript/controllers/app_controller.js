@@ -52,8 +52,11 @@ export default class extends Controller {
     this.currentFileType = null  // "markdown", "config", or null
     this.expandedFolders = new Set()
     this.saveTimeout = null
+    this.saveMaxIntervalTimeout = null  // Safety net for continuous typing
     this.isOffline = false
     this.hasUnsavedChanges = false
+    this._lastSavedContent = null  // Track content to avoid redundant saves
+    this._lastSaveTime = 0  // Track when we last saved
 
     // Editor customization - fonts in alphabetical order, Cascadia Code as default
     this.editorFonts = [
@@ -102,6 +105,13 @@ export default class extends Controller {
     this._scrollSource = null // 'editor' or 'preview'
     this._scrollSourceTimeout = null
 
+    // Controller caching - avoid repeated querySelector calls
+    this._controllerCache = {}
+    this._controllerCacheTimeout = null
+
+    // Debounce timers for performance
+    this._tableCheckTimeout = null
+
     this.renderTree()
     this.setupKeyboardShortcuts()
     this.setupDialogClickOutside()
@@ -131,7 +141,10 @@ export default class extends Controller {
   disconnect() {
     // Clear all timeouts
     if (this.saveTimeout) clearTimeout(this.saveTimeout)
+    if (this.saveMaxIntervalTimeout) clearTimeout(this.saveMaxIntervalTimeout)
     if (this.configSaveTimeout) clearTimeout(this.configSaveTimeout)
+    if (this._controllerCacheTimeout) clearTimeout(this._controllerCacheTimeout)
+    if (this._tableCheckTimeout) clearTimeout(this._tableCheckTimeout)
 
     // Remove window/document event listeners
     if (this.boundPopstateHandler) {
@@ -156,75 +169,81 @@ export default class extends Controller {
     }
   }
 
-  // === Controller Getters ===
+  // === Controller Getters (with caching) ===
 
-  getPreviewController() {
-    const previewElement = document.querySelector('[data-controller~="preview"]')
-    if (previewElement) {
-      return this.application.getControllerForElementAndIdentifier(previewElement, "preview")
+  // Get a cached controller reference, with automatic invalidation
+  // Controllers are cached for 5 seconds to balance performance with DOM changes
+  _getCachedController(name, selector) {
+    const cached = this._controllerCache[name]
+    if (cached && cached.controller) {
+      return cached.controller
+    }
+
+    const element = document.querySelector(selector)
+    if (element) {
+      const controller = this.application.getControllerForElementAndIdentifier(element, name)
+      if (controller) {
+        this._controllerCache[name] = { controller }
+        // Auto-invalidate cache after 5 seconds (handles DOM changes)
+        this._scheduleControllerCacheInvalidation()
+        return controller
+      }
     }
     return null
+  }
+
+  // Schedule cache invalidation (debounced to avoid constant clearing)
+  _scheduleControllerCacheInvalidation() {
+    if (this._controllerCacheTimeout) return // Already scheduled
+    this._controllerCacheTimeout = setTimeout(() => {
+      this._controllerCache = {}
+      this._controllerCacheTimeout = null
+    }, 5000)
+  }
+
+  // Invalidate controller cache immediately (call when DOM structure changes)
+  _invalidateControllerCache() {
+    this._controllerCache = {}
+    if (this._controllerCacheTimeout) {
+      clearTimeout(this._controllerCacheTimeout)
+      this._controllerCacheTimeout = null
+    }
+  }
+
+  getPreviewController() {
+    return this._getCachedController("preview", '[data-controller~="preview"]')
   }
 
   getTypewriterController() {
-    const element = document.querySelector('[data-controller~="typewriter"]')
-    if (element) {
-      return this.application.getControllerForElementAndIdentifier(element, "typewriter")
-    }
-    return null
+    return this._getCachedController("typewriter", '[data-controller~="typewriter"]')
   }
 
   getCodemirrorController() {
-    const element = document.querySelector('[data-controller~="codemirror"]')
-    if (element) {
-      return this.application.getControllerForElementAndIdentifier(element, "codemirror")
-    }
-    return null
+    return this._getCachedController("codemirror", '[data-controller~="codemirror"]')
   }
 
   getPathDisplayController() {
-    const element = document.querySelector('[data-controller~="path-display"]')
-    if (element) {
-      return this.application.getControllerForElementAndIdentifier(element, "path-display")
-    }
-    return null
+    return this._getCachedController("path-display", '[data-controller~="path-display"]')
   }
 
   getTextFormatController() {
-    const textFormatElement = document.querySelector('[data-controller~="text-format"]')
-    if (textFormatElement) {
-      return this.application.getControllerForElementAndIdentifier(textFormatElement, "text-format")
-    }
-    return null
+    return this._getCachedController("text-format", '[data-controller~="text-format"]')
   }
 
   getHelpController() {
-    const helpElement = document.querySelector('[data-controller~="help"]')
-    if (helpElement) {
-      return this.application.getControllerForElementAndIdentifier(helpElement, "help")
-    }
-    return null
+    return this._getCachedController("help", '[data-controller~="help"]')
   }
 
   getStatsPanelController() {
-    const statsPanelElement = document.querySelector('[data-controller~="stats-panel"]')
-    if (statsPanelElement) {
-      return this.application.getControllerForElementAndIdentifier(statsPanelElement, "stats-panel")
-    }
-    return null
+    return this._getCachedController("stats-panel", '[data-controller~="stats-panel"]')
   }
 
   getFileOperationsController() {
-    const element = document.querySelector('[data-controller~="file-operations"]')
-    return element ? this.application.getControllerForElementAndIdentifier(element, "file-operations") : null
+    return this._getCachedController("file-operations", '[data-controller~="file-operations"]')
   }
 
   getEmojiPickerController() {
-    const emojiPickerElement = document.querySelector('[data-controller~="emoji-picker"]')
-    if (emojiPickerElement) {
-      return this.application.getControllerForElementAndIdentifier(emojiPickerElement, "emoji-picker")
-    }
-    return null
+    return this._getCachedController("emoji-picker", '[data-controller~="emoji-picker"]')
   }
 
   // === URL Management for Bookmarkable URLs ===
@@ -497,6 +516,10 @@ export default class extends Controller {
     this.editorPlaceholderTarget.classList.add("hidden")
     this.editorTarget.classList.remove("hidden")
 
+    // Track the loaded content as "saved" baseline (prevents unnecessary saves)
+    this._lastSavedContent = content
+    this.hasUnsavedChanges = false
+
     // Set content via CodeMirror controller
     const codemirrorController = this.getCodemirrorController()
     if (codemirrorController) {
@@ -646,8 +669,21 @@ export default class extends Controller {
     })
   }
 
-  // Check if cursor is in a markdown table
+  // Check if cursor is in a markdown table (debounced to avoid performance issues)
   checkTableAtCursor() {
+    // Debounce table detection - no need to check on every keystroke
+    if (this._tableCheckTimeout) {
+      clearTimeout(this._tableCheckTimeout)
+    }
+
+    this._tableCheckTimeout = setTimeout(() => {
+      this._tableCheckTimeout = null
+      this._doCheckTableAtCursor()
+    }, 200)
+  }
+
+  // Internal: Actually perform the table check
+  _doCheckTableAtCursor() {
     const codemirrorController = this.getCodemirrorController()
     if (!codemirrorController) return
 
@@ -662,6 +698,10 @@ export default class extends Controller {
     }
   }
 
+  // Auto-save configuration
+  static SAVE_DEBOUNCE_MS = 2000      // Wait 2 seconds after last keystroke
+  static SAVE_MAX_INTERVAL_MS = 30000 // Force save every 30 seconds if continuously typing
+
   scheduleAutoSave() {
     // Don't schedule saves while offline
     if (this.isOffline) {
@@ -669,11 +709,30 @@ export default class extends Controller {
       return
     }
 
+    // Only show "unsaved" status once when transitioning from saved to unsaved
+    if (!this.hasUnsavedChanges) {
+      this.hasUnsavedChanges = true
+      this.showSaveStatus(window.t("status.unsaved"))
+    }
+
+    // Clear existing debounce timer
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout)
     }
-    this.showSaveStatus(window.t("status.unsaved"))
-    this.saveTimeout = setTimeout(() => this.saveNow(), 1000)
+
+    // Debounced save - triggers 2 seconds after user stops typing
+    this.saveTimeout = setTimeout(() => this.saveNow(), this.constructor.SAVE_DEBOUNCE_MS)
+
+    // Safety net: ensure we save at least every 30 seconds during continuous typing
+    // This prevents data loss if user types without pausing
+    if (!this.saveMaxIntervalTimeout) {
+      this.saveMaxIntervalTimeout = setTimeout(() => {
+        this.saveMaxIntervalTimeout = null
+        if (this.hasUnsavedChanges) {
+          this.saveNow()
+        }
+      }, this.constructor.SAVE_MAX_INTERVAL_MS)
+    }
   }
 
   async saveNow() {
@@ -685,15 +744,27 @@ export default class extends Controller {
 
     if (!this.currentFile) return
 
+    // Clear both timers
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout)
       this.saveTimeout = null
+    }
+    if (this.saveMaxIntervalTimeout) {
+      clearTimeout(this.saveMaxIntervalTimeout)
+      this.saveMaxIntervalTimeout = null
     }
 
     // Get content from CodeMirror or fallback to textarea
     const codemirrorController = this.getCodemirrorController()
     const content = codemirrorController ? codemirrorController.getValue() : this.textareaTarget.value
     const isConfigFile = this.currentFile === ".fed"
+
+    // Skip save if content hasn't actually changed since last save
+    if (content === this._lastSavedContent) {
+      this.hasUnsavedChanges = false
+      this.showSaveStatus("")
+      return
+    }
 
     try {
       const response = await fetch(`/notes/${encodePath(this.currentFile)}`, {
@@ -709,6 +780,9 @@ export default class extends Controller {
         throw new Error(window.t("errors.failed_to_save"))
       }
 
+      // Track what we saved
+      this._lastSavedContent = content
+      this._lastSaveTime = Date.now()
       this.hasUnsavedChanges = false
       this.showSaveStatus(window.t("status.saved"))
       setTimeout(() => this.showSaveStatus(""), 2000)
@@ -727,11 +801,15 @@ export default class extends Controller {
   onConnectionLost() {
     this.isOffline = true
 
-    // Cancel any pending save - we'll save when connection returns
+    // Cancel any pending saves - we'll save when connection returns
     if (this.saveTimeout) {
       clearTimeout(this.saveTimeout)
       this.saveTimeout = null
       this.hasUnsavedChanges = true
+    }
+    if (this.saveMaxIntervalTimeout) {
+      clearTimeout(this.saveMaxIntervalTimeout)
+      this.saveMaxIntervalTimeout = null
     }
 
     // Cancel any pending config save

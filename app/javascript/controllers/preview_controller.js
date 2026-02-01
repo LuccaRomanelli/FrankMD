@@ -78,6 +78,7 @@ export default class extends Controller {
     this._lastSyncedLine = null
     this._lastSyncedTotalLines = null
     this._previewRenderTimeout = null
+    this._lastRenderedContent = null // Cache to skip identical content updates
     this._scrollSource = null // Track who initiated the scroll: 'editor' or 'preview'
     this._scrollSourceTimeout = null
     this.applyZoom()
@@ -178,6 +179,8 @@ export default class extends Controller {
     this.panelTarget.classList.remove("hidden")
     this.panelTarget.classList.add("flex")
     document.body.classList.add("preview-visible")
+    // Invalidate content cache to ensure fresh render when shown
+    this._lastRenderedContent = null
     this.dispatch("toggled", { detail: { visible: true } })
   }
 
@@ -517,6 +520,23 @@ export default class extends Controller {
     }
 
     this._previewRenderTimeout = setTimeout(() => {
+      // Skip if content hasn't changed (avoids redundant DOM updates)
+      if (content === this._lastRenderedContent) {
+        // Still sync scroll if line changed
+        if (lineChanged) {
+          if (typewriterMode) {
+            this.syncToTypewriter(currentLine, totalLines)
+          } else {
+            this.syncToLineSmooth(currentLine, totalLines)
+          }
+          this._lastSyncedLine = currentLine
+          this._lastSyncedTotalLines = totalLines
+        }
+        return
+      }
+
+      this._lastRenderedContent = content
+
       // Build scroll data - only sync scroll if line changed
       const scrollData = {
         typewriterMode,
@@ -531,7 +551,7 @@ export default class extends Controller {
         this._lastSyncedLine = currentLine
         this._lastSyncedTotalLines = totalLines
       }
-    }, 50) // Small debounce for render
+    }, 150) // Debounce preview render to reduce DOM thrashing
   }
 
   // Sync preview scroll in typewriter mode based on visible content

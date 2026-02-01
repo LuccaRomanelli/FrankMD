@@ -501,4 +501,78 @@ describe("PreviewController", () => {
       })
     })
   })
+
+  describe("content caching", () => {
+    beforeEach(() => {
+      // Make panel visible for updateWithSync tests
+      controller.panelTarget.classList.remove("hidden")
+      controller.panelTarget.classList.add("flex")
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it("initializes _lastRenderedContent to null", () => {
+      expect(controller._lastRenderedContent).toBe(null)
+    })
+
+    it("show() invalidates content cache", () => {
+      controller._lastRenderedContent = "cached content"
+      controller.panelTarget.classList.add("hidden")
+      controller.panelTarget.classList.remove("flex")
+
+      controller.show()
+
+      expect(controller._lastRenderedContent).toBe(null)
+    })
+
+    it("updateWithSync skips DOM update when content unchanged", () => {
+      const renderSpy = vi.spyOn(controller, "render")
+
+      // First call - should render
+      controller.updateWithSync("# Hello", { cursorPos: 0 })
+      vi.advanceTimersByTime(200)
+      expect(renderSpy).toHaveBeenCalledTimes(1)
+      expect(controller._lastRenderedContent).toBe("# Hello")
+
+      // Second call with same content - should skip render
+      controller.updateWithSync("# Hello", { cursorPos: 0 })
+      vi.advanceTimersByTime(200)
+      // render called only once (from first call)
+      expect(renderSpy).toHaveBeenCalledTimes(1)
+    })
+
+    it("updateWithSync renders when content changes", () => {
+      const renderSpy = vi.spyOn(controller, "render")
+
+      // First call
+      controller.updateWithSync("# Hello", { cursorPos: 0 })
+      vi.advanceTimersByTime(200)
+      expect(renderSpy).toHaveBeenCalledTimes(1)
+
+      // Second call with different content - should render
+      controller.updateWithSync("# Hello World", { cursorPos: 0 })
+      vi.advanceTimersByTime(200)
+      expect(renderSpy).toHaveBeenCalledTimes(2)
+    })
+
+    it("updateWithSync still syncs scroll when content unchanged but line changes", () => {
+      const syncSpy = vi.spyOn(controller, "syncToLineSmooth")
+
+      // First call - establishes content and line
+      controller.updateWithSync("# Hello\n\nWorld", { cursorPos: 0 })
+      vi.advanceTimersByTime(200)
+      controller._lastSyncedLine = 1
+      controller._lastSyncedTotalLines = 3
+
+      // Second call with same content but cursor on different line
+      controller.updateWithSync("# Hello\n\nWorld", { cursorPos: 10 }) // cursor after newlines
+      vi.advanceTimersByTime(200)
+
+      // Should have called sync (line changed from 1 to 3)
+      expect(syncSpy).toHaveBeenCalled()
+    })
+  })
 })
