@@ -12,6 +12,14 @@ import {
   createKeyHandler,
   mergeShortcuts
 } from "lib/keyboard_shortcuts"
+import { createTextareaAdapter, getEditorContent } from "lib/codemirror_adapter"
+import {
+  insertBlockContent,
+  insertInlineContent,
+  insertImage,
+  insertCodeBlock,
+  insertVideoEmbed
+} from "lib/codemirror_content_insertion"
 
 export default class extends Controller {
   static targets = [
@@ -620,7 +628,7 @@ export default class extends Controller {
     if (!previewController || !previewController.isVisible) return
 
     const codemirrorController = this.getCodemirrorController()
-    const content = codemirrorController ? codemirrorController.getValue() : (this.hasTextareaTarget ? this.textareaTarget.value : "")
+    const content = getEditorContent(codemirrorController, this.hasTextareaTarget ? this.textareaTarget : null)
     const cursorInfo = codemirrorController ? codemirrorController.getCursorPosition() : { offset: 0 }
 
     previewController.updateWithSync(content, {
@@ -827,7 +835,7 @@ export default class extends Controller {
     if (!previewController || !previewController.isVisible) return
 
     const codemirrorController = this.getCodemirrorController()
-    const content = codemirrorController ? codemirrorController.getValue() : (this.hasTextareaTarget ? this.textareaTarget.value : "")
+    const content = getEditorContent(codemirrorController, this.hasTextareaTarget ? this.textareaTarget : null)
 
     // Build scroll data for preview controller
     const scrollData = { typewriterMode: this.typewriterModeEnabled }
@@ -893,27 +901,7 @@ export default class extends Controller {
     const codemirrorController = this.getCodemirrorController()
     if (!codemirrorController) return
 
-    const text = codemirrorController.getValue()
-
-    if (editMode) {
-      // Replace existing table
-      codemirrorController.replaceRange(markdown, startPos, endPos)
-      codemirrorController.setSelection(startPos + markdown.length, startPos + markdown.length)
-    } else {
-      // Insert at cursor
-      const cursorPos = codemirrorController.getCursorPosition().offset
-      const before = text.substring(0, cursorPos)
-      const after = text.substring(cursorPos)
-
-      // Add newlines if needed
-      const prefix = before.length > 0 && !before.endsWith("\n\n") ? (before.endsWith("\n") ? "\n" : "\n\n") : ""
-      const suffix = after.length > 0 && !after.startsWith("\n\n") ? (after.startsWith("\n") ? "\n" : "\n\n") : ""
-
-      const insert = prefix + markdown + suffix
-      codemirrorController.insertAt(cursorPos, insert)
-      codemirrorController.setSelection(cursorPos + insert.length, cursorPos + insert.length)
-    }
-
+    insertBlockContent(codemirrorController, markdown, { editMode, startPos, endPos })
     codemirrorController.focus()
     this.onEditorChange({ detail: { docChanged: true } })
   }
@@ -926,18 +914,7 @@ export default class extends Controller {
     const codemirrorController = this.getCodemirrorController()
     if (!codemirrorController) return
 
-    const { from, to } = codemirrorController.getSelection()
-    const text = codemirrorController.getValue()
-    const before = text.substring(0, from)
-    const after = text.substring(to)
-
-    // Add newlines if needed
-    const needsNewlineBefore = before.length > 0 && !before.endsWith("\n")
-    const needsNewlineAfter = after.length > 0 && !after.startsWith("\n")
-
-    const insert = (needsNewlineBefore ? "\n" : "") + markdown + (needsNewlineAfter ? "\n" : "")
-    codemirrorController.replaceRange(insert, from, to)
-    codemirrorController.setSelection(from + insert.length, from + insert.length)
+    insertImage(codemirrorController, markdown)
     codemirrorController.focus()
     this.onEditorChange({ detail: { docChanged: true } })
   }
@@ -1346,33 +1323,7 @@ export default class extends Controller {
     if (!codemirrorController) {
       return this.hasTextareaTarget ? this.textareaTarget : null
     }
-
-    return {
-      get value() { return codemirrorController.getValue() },
-      set value(text) { codemirrorController.setValue(text) },
-      get selectionStart() { return codemirrorController.getSelection().from },
-      get selectionEnd() { return codemirrorController.getSelection().to },
-      setSelectionRange(from, to) { codemirrorController.setSelection(from, to) },
-      focus() { codemirrorController.focus() },
-      addEventListener(event, handler) {
-        // The find_replace_controller listens for input events
-        // We need to handle this via CodeMirror's event system
-        if (event === "input") {
-          this._inputHandler = handler
-        }
-      },
-      removeEventListener(event, handler) {
-        if (event === "input") {
-          this._inputHandler = null
-        }
-      },
-      dispatchEvent(event) {
-        // Handle synthetic events
-        if (event.type === "input" && this._inputHandler) {
-          this._inputHandler(event)
-        }
-      }
-    }
+    return createTextareaAdapter(codemirrorController)
   }
 
   onFindReplaceJump(event) {
@@ -1513,37 +1464,9 @@ export default class extends Controller {
     if (!codemirrorController) return
 
     const { codeBlock, language, editMode, startPos, endPos } = event.detail
-    const text = codemirrorController.getValue()
 
-    let newCursorPos
-
-    if (editMode) {
-      // Replace existing code block
-      codemirrorController.replaceRange(codeBlock, startPos, endPos)
-      // Position cursor at first line of content (after ```language\n)
-      newCursorPos = startPos + 3 + language.length + 1
-    } else {
-      // Insert at cursor
-      const cursorPos = codemirrorController.getCursorPosition().offset
-      const before = text.substring(0, cursorPos)
-      const after = text.substring(cursorPos)
-
-      // Add newlines if needed
-      const prefix = before.length > 0 && !before.endsWith("\n\n") ? (before.endsWith("\n") ? "\n" : "\n\n") : ""
-      const suffix = after.length > 0 && !after.startsWith("\n\n") ? (after.startsWith("\n") ? "\n" : "\n\n") : ""
-
-      const insert = prefix + codeBlock + suffix
-      codemirrorController.insertAt(cursorPos, insert)
-
-      // Position cursor at first line inside the fence (after ```language\n)
-      newCursorPos = cursorPos + prefix.length + 3 + language.length + 1
-    }
-
-    // Focus and set cursor position
+    insertCodeBlock(codemirrorController, codeBlock, language, { editMode, startPos, endPos })
     codemirrorController.focus()
-    setTimeout(() => {
-      codemirrorController.setSelection(newCursorPos, newCursorPos)
-    }, 0)
     this.onEditorChange({ detail: { docChanged: true } })
   }
 
@@ -1577,21 +1500,8 @@ export default class extends Controller {
     const codemirrorController = this.getCodemirrorController()
     if (!codemirrorController) return
 
-    const cursorPos = codemirrorController.getCursorPosition().offset
-    const text = codemirrorController.getValue()
-    const before = text.substring(0, cursorPos)
-    const after = text.substring(cursorPos)
-
-    // Add newlines if needed
-    const prefix = before.length > 0 && !before.endsWith("\n\n") ? (before.endsWith("\n") ? "\n" : "\n\n") : ""
-    const suffix = after.length > 0 && !after.startsWith("\n\n") ? (after.startsWith("\n") ? "\n" : "\n\n") : ""
-
-    const insert = prefix + embedCode + suffix
-    codemirrorController.insertAt(cursorPos, insert)
-
-    const newCursorPos = cursorPos + insert.length
+    insertVideoEmbed(codemirrorController, embedCode)
     codemirrorController.focus()
-    codemirrorController.setSelection(newCursorPos, newCursorPos)
     this.onEditorChange({ detail: { docChanged: true } })
   }
 
@@ -2042,15 +1952,7 @@ export default class extends Controller {
     const { text: insertText } = event.detail
     if (!insertText) return
 
-    const { from, to } = codemirrorController.getSelection()
-
-    // Insert the emoji/emoticon at cursor position
-    codemirrorController.replaceRange(insertText, from, to)
-
-    // Position cursor after the inserted text
-    const newPosition = from + insertText.length
-    codemirrorController.setSelection(newPosition, newPosition)
-
+    insertInlineContent(codemirrorController, insertText)
     codemirrorController.focus()
     this.scheduleAutoSave()
     this.updatePreview()
