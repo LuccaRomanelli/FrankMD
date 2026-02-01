@@ -556,9 +556,18 @@ export default class extends Controller {
 
     // Only do markdown-specific processing for markdown files
     if (this.isMarkdownFile()) {
-      this.updatePreviewWithSync()
+      // Only sync preview if it's visible - skip entirely when closed
+      const previewController = this.getPreviewController()
+      if (previewController && previewController.isVisible) {
+        this.updatePreviewWithSync()
+      }
+
       this.checkTableAtCursor()
-      this.maintainTypewriterScroll()
+
+      // Typewriter scroll centering works regardless of preview
+      if (this.typewriterModeEnabled) {
+        this.maintainTypewriterScroll()
+      }
     }
   }
 
@@ -569,19 +578,19 @@ export default class extends Controller {
 
   // Handle CodeMirror scroll events
   onEditorScroll(event) {
-    // Don't sync preview if this scroll was caused by preview sync (prevents feedback loop)
+    // Only sync when preview is visible - skip all sync logic when closed
+    const previewController = this.getPreviewController()
+    if (!previewController || !previewController.isVisible) return
+
+    // Don't sync if this scroll was caused by preview sync (prevents feedback loop)
     if (this._scrollSource === "preview") return
 
     // Mark that editor initiated this scroll
     this._markScrollFromEditor()
 
-    // Sync preview scroll - use scroll ratio for both normal and typewriter modes
-    // (cursor-based sync in typewriter mode happens on selection change)
-    const previewController = this.getPreviewController()
-    if (previewController && previewController.isVisible) {
-      const scrollRatio = event.detail?.scrollRatio || 0
-      previewController.syncScrollRatio(scrollRatio)
-    }
+    // Sync preview scroll position
+    const scrollRatio = event.detail?.scrollRatio || 0
+    previewController.syncScrollRatio(scrollRatio)
   }
 
   // Dispatch an input event to trigger all listeners after programmatic value changes
@@ -1225,16 +1234,17 @@ export default class extends Controller {
 
   maintainTypewriterScroll() {
     const codemirrorController = this.getCodemirrorController()
-    if (codemirrorController && this.typewriterModeEnabled) {
-      codemirrorController.maintainTypewriterScroll()
+    if (!codemirrorController) return
 
-      // Also sync preview if visible
-      const previewController = this.getPreviewController()
-      if (previewController && previewController.isVisible) {
-        const syncData = codemirrorController.getTypewriterSyncData()
-        if (syncData) {
-          previewController.syncToTypewriter(syncData.currentLine, syncData.totalLines)
-        }
+    // Center cursor in editor (works regardless of preview)
+    codemirrorController.maintainTypewriterScroll()
+
+    // Sync preview if visible
+    const previewController = this.getPreviewController()
+    if (previewController && previewController.isVisible) {
+      const syncData = codemirrorController.getTypewriterSyncData()
+      if (syncData) {
+        previewController.syncToTypewriter(syncData.currentLine, syncData.totalLines)
       }
     }
   }
