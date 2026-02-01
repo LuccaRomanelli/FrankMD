@@ -23,6 +23,12 @@
 - **Docker-ready** - One command to start writing
 - **Blog-friendly** - Perfect for drafting posts with live preview
 
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_15-16-29.jpg" alt="FrankMD running as desktop app" width="800">
+  <br>
+  <em>FrankMD running as a desktop app with <code>fed .</code> command</em>
+</p>
+
 ## Features
 
 ### Editor
@@ -38,7 +44,26 @@
 - Drag and drop files and folders
 - Quick file finder (`Ctrl+P`)
 - Full-text search with regex support (`Ctrl+Shift+F`)
+- Find and replace with regex support (`Ctrl+H`)
 - **Hugo blog post support** - Create posts with proper directory structure
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_15-24-36.jpg" alt="File finder" width="600">
+  <br>
+  <em>Quick file finder with fuzzy search (Ctrl+P)</em>
+</p>
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_15-25-59.jpg" alt="Content search" width="600">
+  <br>
+  <em>Full-text search with regex support (Ctrl+Shift+F)</em>
+</p>
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_15-22-35.jpg" alt="Find and replace" width="600">
+  <br>
+  <em>Find and replace with regex support (Ctrl+H)</em>
+</p>
 
 ### Preview
 - Live markdown preview panel
@@ -46,22 +71,89 @@
 - Zoom controls
 - GitHub-flavored markdown support
 
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-13-29.jpg" alt="Preview panel" width="700">
+  <br>
+  <em>Live preview with synchronized scrolling</em>
+</p>
+
 ### Media
-- **Images**: Browse local images, search web (DuckDuckGo), Google Images, or Pinterest
+- **Images**: Browse local images, search web (DuckDuckGo), Google Images, Pinterest, or generate with AI
 - **Videos**: Embed YouTube videos with search, or local video files
 - **Tables**: Visual table editor with drag-and-drop rows/columns
 - **Code blocks**: Language selection with autocomplete
+- **Emoji & Emoticons**: Quick picker with search
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-03-02.jpg" alt="Local image picker" width="600">
+  <br>
+  <em>Browse local images from your filesystem</em>
+</p>
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-06-07.jpg" alt="Web image search" width="600">
+  <br>
+  <em>Search images from the web (DuckDuckGo, Google, Pinterest)</em>
+</p>
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-10-24.jpg" alt="AI image generation" width="600">
+  <br>
+  <em>Generate images with AI (requires configured AI provider)</em>
+</p>
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/ai_1769965759787.png" alt="AI generated image example" width="400">
+  <br>
+  <em>Example AI-generated image: "nano banana"</em>
+</p>
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-12-34.jpg" alt="YouTube search" width="600">
+  <br>
+  <em>Search and embed YouTube videos</em>
+</p>
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-28-00.jpg" alt="Table editor" width="600">
+  <br>
+  <em>Visual markdown table editor</em>
+</p>
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-30-19.jpg" alt="Emoji picker" width="500">
+  <br>
+  <em>Emoji picker with search</em>
+</p>
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-30-40.jpg" alt="Emoticon picker" width="500">
+  <br>
+  <em>Emoticon picker</em>
+</p>
 
 ### AI Features
 - **Grammar Check**: AI-powered grammar, spelling, and typo correction
 - Side-by-side diff view with original and corrected text
 - Editable corrections before accepting changes
-- Supports Ollama (local), OpenAI, and OpenRouter
+- Supports Ollama (local), OpenAI, Anthropic, Gemini, and OpenRouter
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-22-28.jpg" alt="AI grammar checker" width="700">
+  <br>
+  <em>AI grammar checker with side-by-side diff view</em>
+</p>
 
 ### Internationalization
 - **7 languages**: English, Português (Brasil), Português (Portugal), Español, עברית (Hebrew), 日本語 (Japanese), 한국어 (Korean)
 - Language picker in the header
 - Persistent preference saved to configuration
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-34-30.jpg" alt="Japanese interface" width="700">
+  <br>
+  <em>Full interface localization (Japanese example)</em>
+</p>
 
 ### Integrations
 - AWS S3 for image hosting (optional)
@@ -567,6 +659,12 @@ Typewriter mode (`Ctrl+\`) is designed for focused, distraction-free writing:
 - As you type, the text scrolls to keep your writing position fixed
 - Adjust editor width with `Ctrl+Shift++` and `Ctrl+Shift+-`
 
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-17-37.jpg" alt="Typewriter mode" width="700">
+  <br>
+  <em>Typewriter mode: distraction-free writing with centered cursor</em>
+</p>
+
 This mimics the experience of a typewriter where your typing position stays constant on the page, reducing eye movement and helping maintain focus during long writing sessions.
 
 ## Hugo Blog Post Support
@@ -575,6 +673,12 @@ FrankMD includes built-in support for creating Hugo-compatible blog posts. When 
 
 - **Empty Document** - A plain markdown file
 - **Hugo Blog Post** - A properly structured Hugo post
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-39-53.jpg" alt="New note dialog" width="500">
+  <br>
+  <em>New note dialog with Hugo blog post option</em>
+</p>
 
 ### Hugo Post Structure
 
@@ -594,6 +698,12 @@ tags:
 ---
 ```
 
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-38-55.jpg" alt="Hugo post with frontmatter" width="700">
+  <br>
+  <em>Hugo blog post with automatic frontmatter generation</em>
+</p>
+
 ### Slug Generation
 
 The slug is automatically generated from the title:
@@ -610,6 +720,12 @@ Examples:
 ## Themes
 
 FrankMD includes 18 color themes:
+
+<p align="center">
+  <img src="https://new-uploads-akitaonrails.s3.us-east-2.amazonaws.com/frankmd/2026/02/screenshot-2026-02-01_14-37-05.jpg" alt="Theme picker" width="300">
+  <br>
+  <em>Theme picker dropdown</em>
+</p>
 
 | Theme | Description |
 |-------|-------------|

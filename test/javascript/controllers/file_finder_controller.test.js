@@ -56,6 +56,7 @@ describe("FileFinderController", () => {
       expect(controller.allFiles).toEqual([])
       expect(controller.filteredResults).toEqual([])
       expect(controller.selectedIndex).toBe(0)
+      expect(controller.usingKeyboard).toBe(false)
     })
   })
 
@@ -258,6 +259,71 @@ describe("FileFinderController", () => {
       controller.onHover(event)
 
       expect(renderSpy).not.toHaveBeenCalled()
+    })
+
+    it("ignores hover when using keyboard navigation", () => {
+      controller.filteredResults = [
+        { name: "file1.md", path: "file1.md" },
+        { name: "file2.md", path: "file2.md" }
+      ]
+      controller.selectedIndex = 0
+      controller.usingKeyboard = true
+
+      const event = { currentTarget: { dataset: { index: "1" } } }
+      controller.onHover(event)
+
+      expect(controller.selectedIndex).toBe(0)
+    })
+  })
+
+  describe("keyboard/mouse interaction", () => {
+    beforeEach(() => {
+      controller.filteredResults = [
+        { name: "file1.md", path: "file1.md" },
+        { name: "file2.md", path: "file2.md" },
+        { name: "file3.md", path: "file3.md" }
+      ]
+    })
+
+    it("sets usingKeyboard flag on arrow key navigation", () => {
+      expect(controller.usingKeyboard).toBe(false)
+
+      const event = new KeyboardEvent("keydown", { key: "ArrowDown" })
+      event.preventDefault = vi.fn()
+      controller.onKeydown(event)
+
+      expect(controller.usingKeyboard).toBe(true)
+    })
+
+    it("resets usingKeyboard flag on mouse move", () => {
+      controller.usingKeyboard = true
+
+      controller.onMouseMove()
+
+      expect(controller.usingKeyboard).toBe(false)
+    })
+
+    it("allows hover selection after mouse move", () => {
+      controller.selectedIndex = 0
+
+      // Use keyboard to navigate
+      const keyEvent = new KeyboardEvent("keydown", { key: "ArrowDown" })
+      keyEvent.preventDefault = vi.fn()
+      controller.onKeydown(keyEvent)
+      expect(controller.usingKeyboard).toBe(true)
+
+      // Hover should be ignored
+      const hoverEvent = { currentTarget: { dataset: { index: "2" } } }
+      controller.onHover(hoverEvent)
+      expect(controller.selectedIndex).toBe(1)
+
+      // Move mouse to re-enable hover
+      controller.onMouseMove()
+      expect(controller.usingKeyboard).toBe(false)
+
+      // Now hover should work
+      controller.onHover(hoverEvent)
+      expect(controller.selectedIndex).toBe(2)
     })
   })
 

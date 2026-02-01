@@ -18,6 +18,7 @@ export default class extends Controller {
     this.allFiles = []
     this.filteredResults = []
     this.selectedIndex = 0
+    this.usingKeyboard = false
   }
 
   // Called by app_controller with flattened file tree
@@ -130,12 +131,14 @@ export default class extends Controller {
   onKeydown(event) {
     if (event.key === "ArrowDown") {
       event.preventDefault()
+      this.usingKeyboard = true
       if (this.selectedIndex < this.filteredResults.length - 1) {
         this.selectedIndex++
         this.renderResults()
       }
     } else if (event.key === "ArrowUp") {
       event.preventDefault()
+      this.usingKeyboard = true
       if (this.selectedIndex > 0) {
         this.selectedIndex--
         this.renderResults()
@@ -147,11 +150,19 @@ export default class extends Controller {
   }
 
   onHover(event) {
+    // Ignore hover events when navigating with keyboard
+    if (this.usingKeyboard) return
+
     const index = parseInt(event.currentTarget.dataset.index)
     if (index !== this.selectedIndex) {
       this.selectedIndex = index
       this.renderResults()
     }
+  }
+
+  onMouseMove() {
+    // Re-enable mouse selection when mouse moves
+    this.usingKeyboard = false
   }
 
   selectFromClick(event) {
