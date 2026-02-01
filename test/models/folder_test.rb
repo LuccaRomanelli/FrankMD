@@ -119,6 +119,82 @@ class FolderTest < ActiveSupport::TestCase
     assert File.exist?(@test_notes_dir.join("new_folder/note.md"))
   end
 
+  test "folder.rename updates Hugo frontmatter slug in index.md" do
+    create_test_folder("old-slug")
+    hugo_content = <<~FRONTMATTER
+      ---
+      title: "My Blog Post"
+      slug: "old-slug"
+      date: 2026-02-01T10:00:00-03:00
+      draft: true
+      tags:
+      -
+      ---
+
+      Content here
+    FRONTMATTER
+    create_test_note("old-slug/index.md", hugo_content)
+    folder = Folder.new(path: "old-slug")
+
+    assert folder.rename("new-slug")
+
+    updated_content = File.read(@test_notes_dir.join("new-slug/index.md"))
+    assert_includes updated_content, 'slug: "new-slug"'
+    refute_includes updated_content, 'slug: "old-slug"'
+    assert_includes updated_content, 'title: "My Blog Post"'
+    assert_includes updated_content, "Content here"
+  end
+
+  test "folder.rename updates slug with accented folder name" do
+    create_test_folder("old-post")
+    hugo_content = <<~FRONTMATTER
+      ---
+      title: "Test"
+      slug: "old-post"
+      ---
+
+      Body
+    FRONTMATTER
+    create_test_note("old-post/index.md", hugo_content)
+    folder = Folder.new(path: "old-post")
+
+    assert folder.rename("café-açaí")
+
+    updated_content = File.read(@test_notes_dir.join("café-açaí/index.md"))
+    assert_includes updated_content, 'slug: "cafe-acai"'
+  end
+
+  test "folder.rename does not modify non-Hugo index.md" do
+    create_test_folder("regular-folder")
+    regular_content = "# Just a regular note\n\nNo frontmatter here"
+    create_test_note("regular-folder/index.md", regular_content)
+    folder = Folder.new(path: "regular-folder")
+
+    assert folder.rename("renamed-folder")
+
+    updated_content = File.read(@test_notes_dir.join("renamed-folder/index.md"))
+    assert_equal regular_content, updated_content
+  end
+
+  test "folder.rename does not modify frontmatter without slug field" do
+    create_test_folder("no-slug-folder")
+    frontmatter_content = <<~FRONTMATTER
+      ---
+      title: "No Slug"
+      date: 2026-02-01
+      ---
+
+      Content
+    FRONTMATTER
+    create_test_note("no-slug-folder/index.md", frontmatter_content)
+    folder = Folder.new(path: "no-slug-folder")
+
+    assert folder.rename("renamed-no-slug")
+
+    updated_content = File.read(@test_notes_dir.join("renamed-no-slug/index.md"))
+    assert_equal frontmatter_content, updated_content
+  end
+
   # === folder.exists? ===
 
   test "folder.exists? returns true for existing directory" do
