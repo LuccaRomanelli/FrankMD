@@ -44,8 +44,11 @@
   /* === Syntax Highlighting Classes === */
 
   /* Headings - use dedicated heading colors from theme */
+  /* Note: We cannot use font-weight changes because the overlay technique
+     requires identical text metrics between textarea and highlight layer.
+     Bold text is wider and would cause line wrapping to differ. */
   .sh-heading {
-    font-weight: 600;
+    /* font-weight removed to maintain text alignment */
   }
 
   .sh-h1 {
@@ -66,16 +69,15 @@
     color: var(--theme-accent);
   }
 
-  /* Bold text */
+  /* Bold text - indicated by color only (font-weight would break alignment) */
   .sh-bold {
-    font-weight: 700;
     color: var(--theme-text-primary);
+    text-shadow: 0 0 0.5px currentColor; /* Subtle emphasis without changing width */
   }
 
-  /* Italic text */
+  /* Italic text - indicated by color only (font-style would break alignment) */
   .sh-italic {
-    font-style: italic;
-    color: var(--theme-text-primary);
+    color: var(--theme-text-muted);
   }
 
   /* Strikethrough */
@@ -106,13 +108,11 @@
   /* List markers (-, *, +, 1.) */
   .sh-list-marker {
     color: var(--theme-text-muted);
-    font-weight: 600;
   }
 
   /* Blockquotes */
   .sh-blockquote {
     color: var(--theme-text-muted);
-    font-style: italic;
   }
 
   /* Horizontal rules */

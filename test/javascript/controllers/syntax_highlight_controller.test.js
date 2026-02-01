@@ -255,7 +255,7 @@ describe("SyntaxHighlightController", () => {
       expect(controller.highlightTarget.innerHTML).toContain("sh-heading")
     })
 
-    it("adds trailing newline to match textarea behavior", () => {
+    it("adds trailing newline to ensure last line renders properly", () => {
       controller.textareaTarget.value = "text"
       controller.update()
 

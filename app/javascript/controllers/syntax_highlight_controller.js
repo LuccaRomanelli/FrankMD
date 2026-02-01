@@ -99,7 +99,7 @@ export default class extends Controller {
     const text = this.textareaTarget.value
     const highlighted = this.highlight(text)
 
-    // Add trailing newline to match textarea behavior
+    // Add trailing newline to ensure last line renders properly
     this.highlightTarget.innerHTML = highlighted + "\n"
 
     // Sync scroll position

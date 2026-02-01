@@ -42,7 +42,10 @@ class LogsController < ApplicationController
         read_size = [chunk_size, pos].min
         pos -= read_size
         file.seek(pos)
-        buffer = file.read(read_size) + buffer
+        chunk = file.read(read_size)
+        break if chunk.nil? # File was truncated
+
+        buffer = chunk + buffer
 
         # Split into lines and keep counting
         all_lines = buffer.split("\n", -1)

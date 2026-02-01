@@ -73,12 +73,13 @@ export default class extends Controller {
     const mirror = document.createElement("div")
     const style = window.getComputedStyle(textarea)
 
-    // Copy relevant styles
+    // Copy relevant styles - use offsetWidth with border-box to match textarea exactly
     mirror.style.cssText = `
       position: absolute;
       top: -9999px;
       left: -9999px;
-      width: ${textarea.clientWidth}px;
+      box-sizing: border-box;
+      width: ${textarea.offsetWidth}px;
       height: auto;
       font-family: ${style.fontFamily};
       font-size: ${style.fontSize};
