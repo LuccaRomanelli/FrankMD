@@ -119,64 +119,16 @@ class Folder
     return unless service.file?(index_path)
 
     content = service.read(index_path)
-    return unless content.start_with?("---")
-
-    # Parse frontmatter
-    parts = content.split(/^---\s*$/, 3)
-    return unless parts.length >= 3
-
-    frontmatter = parts[1]
-    body = parts[2]
-
-    # Check if this is a Hugo post (has slug field)
-    return unless frontmatter.include?("slug:")
-
-    # Generate new slug from folder name
     new_folder_name = File.basename(folder_path)
-    new_slug = slugify(new_folder_name)
+    new_slug = HugoService.slugify(new_folder_name)
 
-    # Update the slug in frontmatter
-    updated_frontmatter = frontmatter.gsub(/^slug:\s*"[^"]*"/, "slug: \"#{new_slug}\"")
-                                     .gsub(/^slug:\s*'[^']*'/, "slug: \"#{new_slug}\"")
-                                     .gsub(/^slug:\s*[^\s\n]+/, "slug: \"#{new_slug}\"")
+    updated_content = HugoService.update_frontmatter_slug(content, new_slug)
+    return unless updated_content
 
-    # Only write if something changed
-    return if updated_frontmatter == frontmatter
-
-    updated_content = "---#{updated_frontmatter}---#{body}"
     service.write(index_path, updated_content)
   rescue StandardError => e
     # Log but don't fail the rename if slug update fails
     Rails.logger.warn("Failed to update Hugo slug in #{index_path}: #{e.message}")
-  end
-
-  # Generate URL-safe slug from text
-  def slugify(text)
-    # Map of accented characters to ASCII equivalents
-    accent_map = {
-      "à" => "a", "á" => "a", "â" => "a", "ã" => "a", "ä" => "a", "å" => "a", "æ" => "ae",
-      "ç" => "c", "č" => "c", "ć" => "c",
-      "è" => "e", "é" => "e", "ê" => "e", "ë" => "e", "ě" => "e",
-      "ì" => "i", "í" => "i", "î" => "i", "ï" => "i",
-      "ð" => "d", "ď" => "d",
-      "ñ" => "n", "ň" => "n",
-      "ò" => "o", "ó" => "o", "ô" => "o", "õ" => "o", "ö" => "o", "ø" => "o",
-      "ù" => "u", "ú" => "u", "û" => "u", "ü" => "u", "ů" => "u",
-      "ý" => "y", "ÿ" => "y",
-      "ž" => "z", "ź" => "z", "ż" => "z",
-      "ß" => "ss", "þ" => "th",
-      "š" => "s", "ś" => "s",
-      "ř" => "r",
-      "ł" => "l"
-    }
-
-    text.downcase
-        .chars
-        .map { |c| accent_map[c] || accent_map[c.downcase] || c }
-        .join
-        .gsub(/[^a-z0-9]+/, "-")  # Replace non-alphanumeric with hyphens
-        .gsub(/^-+|-+$/, "")       # Remove leading/trailing hyphens
-        .gsub(/-+/, "-")           # Collapse multiple hyphens
   end
 
   def find_in_tree(items, target_path)

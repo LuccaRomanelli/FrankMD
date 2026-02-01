@@ -421,6 +421,7 @@ pt-BR:
 
   # Mensagens de erro
   errors:
+    title_required: "Título é obrigatório"
     note_not_found: "Nota não encontrada"
     note_already_exists: "Nota já existe"
     note_is_empty: "A nota está vazia"

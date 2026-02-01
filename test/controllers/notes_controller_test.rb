@@ -119,6 +119,59 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
   end
 
+  # === create with Hugo template ===
+
+  test "create with hugo template generates date-based path" do
+    travel_to Time.zone.local(2026, 2, 1, 10, 30, 0) do
+      post "/notes", params: { template: "hugo", title: "My Blog Post" }, as: :json
+      assert_response :created
+
+      data = JSON.parse(response.body)
+      assert_match %r{2026/02/01/my-blog-post/index\.md}, data["path"]
+    end
+  end
+
+  test "create with hugo template generates frontmatter content" do
+    travel_to Time.zone.local(2026, 2, 1, 10, 30, 0) do
+      post "/notes", params: { template: "hugo", title: "My Blog Post" }, as: :json
+      assert_response :created
+
+      data = JSON.parse(response.body)
+      content = File.read(@test_notes_dir.join(data["path"]))
+
+      assert content.start_with?("---")
+      assert_includes content, 'title: "My Blog Post"'
+      assert_includes content, 'slug: "my-blog-post"'
+      assert_includes content, "draft: true"
+    end
+  end
+
+  test "create with hugo template respects parent folder" do
+    travel_to Time.zone.local(2026, 2, 1, 10, 30, 0) do
+      post "/notes", params: { template: "hugo", title: "My Post", parent: "blog" }, as: :json
+      assert_response :created
+
+      data = JSON.parse(response.body)
+      assert data["path"].start_with?("blog/2026/02/01/")
+    end
+  end
+
+  test "create with hugo template requires title" do
+    post "/notes", params: { template: "hugo", title: "" }, as: :json
+    assert_response :unprocessable_entity
+
+    data = JSON.parse(response.body)
+    assert_includes data["error"], "required"
+  end
+
+  test "create with hugo template handles accented characters in title" do
+    post "/notes", params: { template: "hugo", title: "Café Açaí" }, as: :json
+    assert_response :created
+
+    data = JSON.parse(response.body)
+    assert_includes data["path"], "cafe-acai"
+  end
+
   # === update ===
 
   test "update saves note content" do

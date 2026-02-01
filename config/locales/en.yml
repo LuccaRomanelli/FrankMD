@@ -424,6 +424,7 @@ en:
 
   # Error messages
   errors:
+    title_required: "Title is required"
     note_not_found: "Note not found"
     note_already_exists: "Note already exists"
     note_is_empty: "Note is empty"

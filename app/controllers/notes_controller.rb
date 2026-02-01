@@ -37,8 +37,22 @@ class NotesController < ApplicationController
   end
 
   def create
-    path = Note.normalize_path(params[:path])
-    @note = Note.new(path: path, content: params[:content] || "")
+    # Hugo blog post template - server generates path and content
+    if params[:template] == "hugo"
+      title = params[:title].to_s
+      parent = params[:parent].presence
+
+      if title.blank?
+        render json: { error: t("errors.title_required") }, status: :unprocessable_entity
+        return
+      end
+
+      hugo_post = HugoService.generate_blog_post(title, parent: parent)
+      @note = Note.new(path: hugo_post[:path], content: hugo_post[:content])
+    else
+      path = Note.normalize_path(params[:path])
+      @note = Note.new(path: path, content: params[:content] || "")
+    end
 
     if @note.exists?
       render json: { error: t("errors.note_already_exists") }, status: :unprocessable_entity

@@ -1,6 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
 import { encodePath } from "lib/url_utils"
-import { generateHugoBlogPost } from "lib/markdown_utils"
 
 // File Operations Controller
 // Handles file/folder creation, renaming, deletion and context menu
@@ -207,36 +206,41 @@ export default class extends Controller {
   }
 
   async createNote(name, parent, template) {
-    let path
-    let content = ""
+    let response
 
     if (template === "hugo") {
-      // Hugo posts use date-based path structure: YYYY/MM/DD/slug/index.md
+      // Hugo posts: server generates path and content
       const title = name.replace(/\.md$/, "")
-      const hugoPost = generateHugoBlogPost(title)
-      path = parent ? `${parent}/${hugoPost.notePath}` : hugoPost.notePath
-      content = hugoPost.content
+      response = await fetch("/notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": this.csrfToken
+        },
+        body: JSON.stringify({ template: "hugo", title, parent: parent || "" })
+      })
     } else {
       // Regular notes use simple filename
       const fileName = name.endsWith(".md") ? name : `${name}.md`
-      path = parent ? `${parent}/${fileName}` : fileName
-    }
+      const path = parent ? `${parent}/${fileName}` : fileName
 
-    const response = await fetch(`/notes/${encodePath(path)}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-Token": this.csrfToken
-      },
-      body: JSON.stringify({ content })
-    })
+      response = await fetch(`/notes/${encodePath(path)}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": this.csrfToken
+        },
+        body: JSON.stringify({ content: "" })
+      })
+    }
 
     if (!response.ok) {
       const data = await response.json()
       throw new Error(data.error || window.t("errors.failed_to_create"))
     }
 
-    this.dispatch("file-created", { detail: { path, content } })
+    const data = await response.json()
+    this.dispatch("file-created", { detail: { path: data.path } })
   }
 
   async createFolder(name, parent) {

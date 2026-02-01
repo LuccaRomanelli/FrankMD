@@ -1,9 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { describe, it, expect } from "vitest"
 import {
   findTableAtPosition,
-  findCodeBlockAtPosition,
-  generateHugoBlogPost,
-  slugify
+  findCodeBlockAtPosition
 } from "../../app/javascript/lib/markdown_utils.js"
 
 describe("findTableAtPosition", () => {
@@ -145,97 +143,5 @@ second
   })
 })
 
-describe("generateHugoBlogPost", () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date("2024-03-15T14:30:45"))
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it("generates correct path structure", () => {
-    const { notePath } = generateHugoBlogPost("My Blog Post")
-
-    expect(notePath).toMatch(/^2024\/03\/15\/my-blog-post\/index\.md$/)
-  })
-
-  it("generates frontmatter with title", () => {
-    const { content } = generateHugoBlogPost("My Blog Post")
-
-    expect(content).toContain('title: "My Blog Post"')
-  })
-
-  it("escapes quotes in title", () => {
-    const { content } = generateHugoBlogPost('Post with "quotes"')
-
-    expect(content).toContain('title: "Post with \\"quotes\\""')
-  })
-
-  it("includes slug in frontmatter", () => {
-    const { content } = generateHugoBlogPost("My Blog Post")
-
-    expect(content).toContain('slug: "my-blog-post"')
-  })
-
-  it("includes draft: true", () => {
-    const { content } = generateHugoBlogPost("Test")
-
-    expect(content).toContain("draft: true")
-  })
-
-  it("includes tags section", () => {
-    const { content } = generateHugoBlogPost("Test")
-
-    expect(content).toContain("tags:")
-    expect(content).toContain("-")
-  })
-})
-
-describe("slugify", () => {
-  it("converts to lowercase", () => {
-    expect(slugify("Hello World")).toBe("hello-world")
-  })
-
-  it("replaces spaces with hyphens", () => {
-    expect(slugify("hello world")).toBe("hello-world")
-  })
-
-  it("removes special characters", () => {
-    expect(slugify("hello! world?")).toBe("hello-world")
-  })
-
-  it("handles accented characters", () => {
-    expect(slugify("café")).toBe("cafe")
-    expect(slugify("naïve")).toBe("naive")
-    expect(slugify("résumé")).toBe("resume")
-  })
-
-  it("handles Eastern European characters", () => {
-    expect(slugify("Škoda")).toBe("skoda")
-    expect(slugify("Łódź")).toBe("lodz")
-    expect(slugify("Dvořák")).toBe("dvorak")
-  })
-
-  it("removes leading/trailing hyphens", () => {
-    expect(slugify("--hello--")).toBe("hello")
-  })
-
-  it("collapses multiple hyphens", () => {
-    expect(slugify("hello   world")).toBe("hello-world")
-  })
-
-  it("handles German special characters", () => {
-    expect(slugify("Größe")).toBe("grosse")
-    expect(slugify("Müller")).toBe("muller")
-  })
-
-  it("handles empty string", () => {
-    expect(slugify("")).toBe("")
-  })
-
-  it("handles numbers", () => {
-    expect(slugify("Part 1 of 3")).toBe("part-1-of-3")
-  })
-})
+// Hugo slug and frontmatter generation is now handled server-side
+// See test/services/hugo_service_test.rb for those tests
