@@ -890,3 +890,31 @@ MIT License - see [LICENSE](LICENSE) for details.
 5. Commit (`git commit -m 'Add amazing feature'`)
 6. Push (`git push origin feature/amazing-feature`)
 7. Open a Pull Request
+
+## Stats
+
+### Memory Footprint
+
+| Component | Memory |
+|-----------|--------|
+| Rails container (Puma + Thruster) | ~115 MiB |
+| Browser tab (Brave/Chrome) | ~340 MB |
+| **Total** | **~455 MB** |
+
+### Codebase
+
+| Type | Lines |
+|------|-------|
+| JavaScript | 13,819 |
+| ERB templates | 2,927 |
+| Ruby | 2,848 |
+| CSS | 1,620 |
+| **Total source** | **~21,200** |
+
+### Test Coverage
+
+| Type | Tests | Lines |
+|------|-------|-------|
+| JavaScript (Vitest) | 1,070 | 11,696 |
+| Ruby (Minitest) | 355 | 5,075 |
+| **Total** | **1,425** | **16,771** |
