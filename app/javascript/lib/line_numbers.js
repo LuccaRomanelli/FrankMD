@@ -18,11 +18,22 @@ export function nextLineNumberMode(mode) {
   return LINE_NUMBER_MODES.OFF
 }
 
-export function buildRelativeLineLabels(totalLines, cursorIndex) {
-  const count = Math.max(1, totalLines || 0)
-  const clampedCursor = Math.min(Math.max(cursorIndex, 0), count - 1)
+export function buildRelativeLineLabels(visualCountsPerLine, cursorLogicalIndex) {
+  const logicalCount = Math.max(1, visualCountsPerLine.length)
+  const clampedCursor = Math.min(Math.max(cursorLogicalIndex, 0), logicalCount - 1)
+  const labels = []
 
-  return Array.from({ length: count }, (_, index) => String(index - clampedCursor))
+  for (let i = 0; i < logicalCount; i++) {
+    const visualCount = Math.max(1, visualCountsPerLine[i] || 0)
+    // Show relative offset for the first visual line of each logical line
+    labels.push(String(i - clampedCursor))
+    // Add blank labels for wrapped portions
+    for (let j = 1; j < visualCount; j++) {
+      labels.push("")
+    }
+  }
+
+  return labels
 }
 
 export function buildAbsoluteLineLabels(visualCountsPerLine) {

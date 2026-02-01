@@ -68,6 +68,7 @@ export default class extends Controller {
     const settings = this.hasConfigValue ? (this.configValue.settings || {}) : {}
     this.currentFont = settings.editor_font || "cascadia-code"
     this.currentFontSize = parseInt(settings.editor_font_size) || 14
+    this.editorWidth = Math.max(72, parseInt(settings.editor_width) || 72)
 
     // Preview zoom (tracked for config saving, actual state in preview controller)
     this.previewZoom = parseInt(settings.preview_zoom) || 100
@@ -659,11 +660,13 @@ export default class extends Controller {
       // Apply UI settings
       const oldFont = this.currentFont
       const oldFontSize = this.currentFontSize
+      const oldEditorWidth = this.editorWidth
       const oldZoom = this.previewZoom
       const oldLineNumberMode = this.lineNumberMode
 
       this.currentFont = settings.editor_font || "cascadia-code"
       this.currentFontSize = parseInt(settings.editor_font_size) || 14
+      this.editorWidth = Math.max(72, parseInt(settings.editor_width) || 72)
       this.previewZoom = parseInt(settings.preview_zoom) || 100
       this.editorIndent = parseIndentSetting(settings.editor_indent)
       this.lineNumberMode = normalizeLineNumberMode(
@@ -672,7 +675,7 @@ export default class extends Controller {
       )
 
       // Apply changes if they differ
-      if (this.currentFont !== oldFont || this.currentFontSize !== oldFontSize) {
+      if (this.currentFont !== oldFont || this.currentFontSize !== oldFontSize || this.editorWidth !== oldEditorWidth) {
         this.applyEditorSettings()
       }
       if (this.previewZoom !== oldZoom) {
@@ -931,6 +934,8 @@ export default class extends Controller {
       this.textareaTarget.style.fontFamily = font.family
       this.textareaTarget.style.fontSize = `${this.currentFontSize}px`
     }
+    // Apply editor width as CSS custom property
+    document.documentElement.style.setProperty("--editor-width", `${this.editorWidth}ch`)
     this.scheduleLineNumberUpdate()
   }
 

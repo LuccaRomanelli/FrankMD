@@ -28,10 +28,18 @@ describe("line_numbers", () => {
   })
 
   it("builds relative line labels", () => {
-    expect(buildRelativeLineLabels(5, 2)).toEqual(["-2", "-1", "0", "1", "2"])
+    // 5 logical lines, each with 1 visual line, cursor at logical line 2
+    expect(buildRelativeLineLabels([1, 1, 1, 1, 1], 2)).toEqual(["-2", "-1", "0", "1", "2"])
+  })
+
+  it("builds relative line labels with wrapped gaps", () => {
+    // 3 logical lines: line 1 has 1 visual, line 2 has 3 visuals (wrapped), line 3 has 1 visual
+    // Cursor at logical line 1
+    expect(buildRelativeLineLabels([1, 3, 1], 1)).toEqual(["-1", "0", "", "", "1"])
   })
 
   it("clamps cursor index", () => {
-    expect(buildRelativeLineLabels(2, 10)).toEqual(["-1", "0"])
+    // 2 logical lines, cursor at logical line 10 (clamped to 1)
+    expect(buildRelativeLineLabels([1, 1], 10)).toEqual(["-1", "0"])
   })
 })

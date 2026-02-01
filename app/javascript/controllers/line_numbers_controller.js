@@ -94,9 +94,10 @@ export default class extends Controller {
 
     this.lineNumberUpdateHandle = null
 
-    const { totalVisualLines, cursorVisualIndex, visualCountsPerLine } = this.getVisualLineMetrics()
+    const { cursorLogicalIndex, visualCountsPerLine } = this.getVisualLineMetrics()
+    const logicalLineCount = visualCountsPerLine.length
     const labels = this.modeValue === LINE_NUMBER_MODES.RELATIVE
-      ? buildRelativeLineLabels(totalVisualLines, cursorVisualIndex)
+      ? buildRelativeLineLabels(visualCountsPerLine, cursorLogicalIndex)
       : buildAbsoluteLineLabels(visualCountsPerLine)
 
     const textareaStyle = window.getComputedStyle(this.textareaTarget)
@@ -104,9 +105,9 @@ export default class extends Controller {
     this.numbersTarget.style.fontFamily = textareaStyle.fontFamily
     this.numbersTarget.textContent = labels.join("\n")
 
-    let labelWidth = String(Math.max(visualCountsPerLine.length, 1)).length
+    let labelWidth = String(Math.max(logicalLineCount, 1)).length
     if (this.modeValue === LINE_NUMBER_MODES.RELATIVE) {
-      const maxDistance = Math.max(cursorVisualIndex, totalVisualLines - 1 - cursorVisualIndex)
+      const maxDistance = Math.max(cursorLogicalIndex, logicalLineCount - 1 - cursorLogicalIndex)
       labelWidth = String(maxDistance).length + (maxDistance > 0 ? 1 : 0)
     }
     const digits = Math.max(2, labelWidth)
@@ -158,7 +159,7 @@ export default class extends Controller {
     const cursorOffset = Math.max(0, measureLine(currentLinePrefix) - 1)
     const cursorVisualIndex = Math.min(totalVisualLines - 1, visualLinesBefore + cursorOffset)
 
-    return { totalVisualLines, cursorVisualIndex, visualCountsPerLine }
+    return { totalVisualLines, cursorVisualIndex, cursorLogicalIndex: currentLineIndex, visualCountsPerLine }
   }
 
   // Get textarea line height

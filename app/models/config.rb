@@ -18,6 +18,7 @@ class Config
     "typewriter_mode" => { default: false, type: :boolean, env: nil },
     "editor_indent" => { default: 2, type: :integer, env: nil },
     "editor_line_numbers" => { default: 0, type: :integer, env: nil },
+    "editor_width" => { default: 72, type: :integer, env: nil },
 
     # Paths (ENV defaults)
     "images_path" => { default: nil, type: :string, env: "IMAGES_PATH" },
@@ -76,6 +77,7 @@ class Config
     typewriter_mode
     editor_indent
     editor_line_numbers
+    editor_width
   ].freeze
 
   # AI provider priority (default order when ai_provider = "auto")
@@ -125,7 +127,11 @@ class Config
         "# typewriter_mode = false",
         "",
         "# Editor indent: 0 = tab, 1-6 = spaces (default: 2)",
-        "# editor_indent = 2"
+        "# editor_indent = 2",
+        "",
+        "# Editor width in characters (default: 72, minimum: 72)",
+        "# Increase for wider text area, e.g., 100, 120, or 150",
+        "# editor_width = 72"
       ]
     },
     {
