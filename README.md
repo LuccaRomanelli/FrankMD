@@ -217,6 +217,9 @@ For Firefox, enable SSB mode first: `about:config` → `browser.ssb.enabled` = `
 To run as a persistent service:
 
 ```bash
+# Create notes directory on the host
+mkdir -p ~/notes
+
 # Start in background
 docker run -d --name frankmd -p 7591:80 \
   -v ~/notes:/rails/notes \
@@ -233,25 +236,44 @@ docker start frankmd
 docker rm -f frankmd
 ```
 
+Tip: If you hit permission errors, run the container as your user (`--user "$(id -u):$(id -g)"`) or rebuild the image with matching UID/GID.
+
 ### Using Docker Compose
 
 For a more permanent setup, use the `docker-compose.yml` in this repo:
 
+Quick reference (full file in `docker-compose.yml`):
+
+```yaml
+services:
+  frankmd:
+    image: akitaonrails/frankmd:latest
+    container_name: frankmd
+    restart: unless-stopped
+    ports:
+      - "7591:80"
+    volumes:
+      - ./notes:/rails/notes
+    environment:
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+```
+
 ```bash
 # Copy defaults and set required values
 cp .env.example .env
-echo "SECRET_KEY_BASE=$(openssl rand -hex 64)" >> .env
-echo "UID=$(id -u)" >> .env
-echo "GID=$(id -g)" >> .env
+# Set in .env:
+# SECRET_KEY_BASE=$(openssl rand -hex 64)
+# UID=$(id -u)
+# GID=$(id -g)
 
-# Ensure notes directory exists
+# Ensure notes directory exists (or create your NOTES_PATH target)
 mkdir -p notes
 
 # Start
 docker compose up -d
 ```
 
-**Note:** Run Docker without `sudo` (use the `docker` group) to avoid creating root-owned bind mounts. If you use a custom `NOTES_PATH`, ensure the directory exists and is writable by the UID/GID above.
+**Note:** The host directory in `NOTES_PATH` must exist and be writable by the UID/GID in `.env`. Avoid `sudo docker`, which creates root-owned bind mounts; if that happens, fix ownership with `chown -R UID:GID <path>`.
 
 ## Configuration
 
@@ -815,6 +837,7 @@ app/
 docker build -t frankmd .
 
 # Run locally
+mkdir -p notes
 docker run -p 7591:80 -v $(pwd)/notes:/rails/notes frankmd
 ```
 

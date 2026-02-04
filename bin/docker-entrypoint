@@ -7,26 +7,38 @@ if [ -z "$SECRET_KEY_BASE" ]; then
 fi
 
 notes_path="${NOTES_PATH:-/rails/notes}"
+uid_gid="$(id -u):$(id -g)"
 
 if [ ! -d "$notes_path" ]; then
   cat >&2 <<EOF
-FrankMD error: NOTES_PATH directory does not exist: $notes_path
-Create it and ensure it's writable by UID $(id -u):$(id -g).
-Example:
-  mkdir -p "$notes_path"
-  chown -R $(id -u):$(id -g) "$notes_path"
-If using Docker Compose, set UID/GID in .env and avoid running Docker with sudo.
+FrankMD startup check failed: NOTES_PATH directory does not exist: $notes_path
+This is the container path. Create the host directory you bind to it and ensure it's writable by UID:GID ${uid_gid}.
+Examples:
+  # docker run -v ~/notes:/rails/notes
+  mkdir -p ~/notes
+  chown -R ${uid_gid} ~/notes
+
+  # docker compose (host path in .env)
+  mkdir -p /path/from/NOTES_PATH
+  chown -R ${uid_gid} /path/from/NOTES_PATH
+
+If using Docker Compose, set UID/GID in .env to match your host user. Avoid sudo, which can create root-owned bind mounts.
 EOF
   exit 1
 fi
 
 if [ ! -w "$notes_path" ]; then
   cat >&2 <<EOF
-FrankMD error: NOTES_PATH is not writable: $notes_path
-This container runs as UID $(id -u):$(id -g). Fix ownership/permissions on the host.
-Example:
-  chown -R $(id -u):$(id -g) "$notes_path"
-If using Docker Compose, set UID/GID in .env and avoid running Docker with sudo.
+FrankMD startup check failed: NOTES_PATH is not writable: $notes_path
+This is the container path. Fix ownership/permissions on the host directory you bind to it.
+Examples:
+  # docker run -v ~/notes:/rails/notes
+  chown -R ${uid_gid} ~/notes
+
+  # docker compose (host path in .env)
+  chown -R ${uid_gid} /path/from/NOTES_PATH
+
+If using Docker Compose, set UID/GID in .env to match your host user and avoid sudo.
 EOF
   exit 1
 fi
