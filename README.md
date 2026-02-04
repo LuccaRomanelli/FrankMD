@@ -166,10 +166,10 @@
 ### 1. Setup (one-time)
 
 ```bash
-# Pull image and extract config files
-docker pull akitaonrails/frankmd:latest
-docker run --rm -v "$HOME/.config/frankmd:/out" akitaonrails/frankmd:latest \
-  cp -r /rails/config/fed/. /out/
+# Download config files
+mkdir -p ~/.config/frankmd
+curl -sL https://raw.githubusercontent.com/akitaonrails/FrankMD/master/config/fed/fed.sh -o ~/.config/frankmd/fed.sh
+curl -sL https://raw.githubusercontent.com/akitaonrails/FrankMD/master/config/fed/splash.html -o ~/.config/frankmd/splash.html
 
 # Add to your shell (bash or zsh)
 echo 'source ~/.config/frankmd/fed.sh' >> ~/.bashrc
