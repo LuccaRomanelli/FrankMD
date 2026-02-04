@@ -136,6 +136,14 @@ export default class extends Controller {
 
     // Setup browser history handling for back/forward buttons
     this.setupHistoryHandling()
+
+    // Hide loading screen now that app is ready
+    const loadingScreen = document.getElementById('app-loading')
+    if (loadingScreen) {
+      loadingScreen.style.opacity = '0'
+      loadingScreen.style.transition = 'opacity 0.2s ease-out'
+      setTimeout(() => loadingScreen.remove(), 200)
+    }
   }
 
   disconnect() {
