@@ -206,22 +206,21 @@ fed() {
   local gid="${FRANKMD_GID:-$(id -g)}"
   local notes_path="$(realpath "${1:-.}")"
   local image="akitaonrails/frankmd:latest"
-  local need_restart=false
 
-  # Check if container is running
+  # Check if container needs to be started/restarted
+  local need_restart=false
   if docker ps -q -f name=frankmd 2>/dev/null | grep -q .; then
     # Container running - check if it's using the same notes path
     local current_mount
     current_mount=$(docker inspect frankmd --format '{{range .Mounts}}{{if eq .Destination "/rails/notes"}}{{.Source}}{{end}}{{end}}' 2>/dev/null)
     if [[ "$current_mount" != "$notes_path" ]]; then
-      echo "Switching notes directory..."
       need_restart=true
     fi
   else
     need_restart=true
   fi
 
-  # If restart needed, stop and start fresh
+  # Start container if needed (runs in background, browser opens in parallel)
   if [[ "$need_restart" == "true" ]]; then
     docker stop frankmd 2>/dev/null
     docker rm frankmd 2>/dev/null
@@ -251,13 +250,11 @@ fed() {
     [[ -n "$OPENAI_MODEL" ]] && args+=(-e "OPENAI_MODEL=$OPENAI_MODEL")
 
     docker run --name frankmd --rm "${args[@]}" "$image"
-
-    # Open browser with splash screen that polls until server is ready
-    brave --app="data:text/html,$(fed-splash)"
-  else
-    # Container already running, open directly
-    brave --app=http://localhost:7591
   fi
+
+  # Always open browser with splash - it polls /up and redirects when ready
+  # This runs in parallel with container/Rails startup for faster perceived load
+  brave --app="data:text/html,$(fed-splash)"
 }
 
 # Splash screen HTML (polls /up endpoint and redirects when ready)
