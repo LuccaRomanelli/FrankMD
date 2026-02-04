@@ -200,7 +200,7 @@ export OPENAI_API_KEY=sk-...
 ### 2. Add the `fed` Function
 
 ```bash
-# FrankMD editor function - smart container management with auto-update
+# FrankMD editor function - smart container management with splash screen
 fed() {
   local uid="${FRANKMD_UID:-$(id -u)}"
   local gid="${FRANKMD_GID:-$(id -g)}"
@@ -252,23 +252,40 @@ fed() {
 
     docker run --name frankmd --rm "${args[@]}" "$image"
 
-    # Wait for server to be ready (polls /up endpoint instead of fixed sleep)
-    echo -n "Starting FrankMD"
-    local max_attempts=50  # 5 seconds max
-    local attempt=0
-    while ! curl -sf http://localhost:7591/up >/dev/null 2>&1; do
-      echo -n "."
-      sleep 0.1
-      ((attempt++))
-      if [[ $attempt -ge $max_attempts ]]; then
-        echo " timeout!"
-        return 1
-      fi
-    done
-    echo " ready!"
+    # Open browser with splash screen that polls until server is ready
+    brave --app="data:text/html,$(fed-splash)"
+  else
+    # Container already running, open directly
+    brave --app=http://localhost:7591
   fi
+}
 
-  brave --app=http://localhost:7591
+# Splash screen HTML (polls /up endpoint and redirects when ready)
+fed-splash() {
+  cat <<'SPLASH'
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>FrankMD</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:linear-gradient(135deg,%23FF6B9D 0%25,%23FF8E53 100%25);
+height:100vh;display:flex;align-items:center;justify-content:center;color:white}
+.container{text-align:center}
+.logo{font-size:3rem;font-weight:700;margin-bottom:1rem;text-shadow:0 2px 10px rgba(0,0,0,0.2)}
+.spinner{width:40px;height:40px;margin:1.5rem auto;border:3px solid rgba(255,255,255,0.3);
+border-top-color:white;border-radius:50%25;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status{font-size:0.9rem;opacity:0.9}
+.dots::after{content:'';animation:dots 1.5s steps(4,end) infinite}
+@keyframes dots{0%25,20%25{content:''}40%25{content:'.'}60%25{content:'..'}80%25,100%25{content:'...'}}
+</style></head><body><div class="container">
+<div class="logo">FrankMD</div>
+<div class="spinner"></div>
+<div class="status">Starting<span class="dots"></span></div>
+</div><script>
+(function poll(){fetch('http://localhost:7591/up').then(r=>{
+if(r.ok)window.location.replace('http://localhost:7591/')
+else setTimeout(poll,200)}).catch(()=>setTimeout(poll,200))})()
+</script></body></html>
+SPLASH
 }
 
 # Update FrankMD image (run periodically to get updates)
