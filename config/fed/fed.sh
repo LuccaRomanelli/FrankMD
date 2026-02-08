@@ -39,14 +39,38 @@ fed() {
     )
     for var in "${env_vars[@]}"; do
       local val
-      eval "val=\"\${$var:-}\""
+      val="$(printenv "$var" 2>/dev/null)" || true
       [[ -n "$val" ]] && env_flags+=(-e "$var=$val")
     done
+
+    # Detect images directory to mount into container
+    # Check: IMAGES_PATH env > .fed file > XDG_PICTURES_DIR > ~/Pictures
+    local images_dir="${IMAGES_PATH:-}"
+    if [[ -z "$images_dir" && -f "$notes/.fed" ]]; then
+      images_dir=$(grep -m1 '^images_path=' "$notes/.fed" | cut -d'=' -f2-)
+      images_dir="${images_dir/#\~/$HOME}"
+    fi
+    if [[ -z "$images_dir" ]]; then
+      images_dir="${XDG_PICTURES_DIR:-}"
+    fi
+    if [[ -z "$images_dir" && -d "$HOME/Pictures" ]]; then
+      images_dir="$HOME/Pictures"
+    fi
+
+    # Mount images directory at the same host path (read-only)
+    local images_mount=()
+    if [[ -n "$images_dir" && -d "$images_dir" ]]; then
+      images_dir="$(realpath "$images_dir")"
+      images_mount=(-v "$images_dir:$images_dir:ro")
+      # Ensure container knows the path (covers default ~/Pictures case)
+      [[ -z "${IMAGES_PATH:-}" ]] && env_flags+=(-e "IMAGES_PATH=$images_dir")
+    fi
 
     docker run -d --name frankmd --rm \
       -p 7591:80 \
       --user "$(id -u):$(id -g)" \
       -v "$notes:/rails/notes" \
+      "${images_mount[@]}" \
       "${env_flags[@]}" \
       ${FRANKMD_ENV:+--env-file "$FRANKMD_ENV"} \
       akitaonrails/frankmd:latest >/dev/null
