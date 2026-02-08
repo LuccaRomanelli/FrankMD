@@ -184,6 +184,7 @@ es:
       preview_hint: "Ingresa una URL para ver la vista previa"
       unknown_format: "Formato desconocido. Ingresa una URL de YouTube o ruta de archivo de video."
       insert_video: "Insertar Video"
+      use_hugo_shortcode: "Usar shortcode de Hugo en lugar de HTML embed"
       # YouTube search
       youtube_api_required: "Se Requiere Clave de API de YouTube"
       youtube_api_description: "Para buscar videos de YouTube, necesitas configurar una clave de API de YouTube Data."

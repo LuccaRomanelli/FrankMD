@@ -181,6 +181,7 @@ he:
       preview_hint: "הזן URL לתצוגה מקדימה"
       unknown_format: "פורמט לא ידוע. הזן URL של YouTube או נתיב לקובץ סרטון."
       insert_video: "הוסף סרטון"
+      use_hugo_shortcode: "השתמש ב-shortcode של Hugo במקום HTML embed"
       # חיפוש YouTube
       youtube_api_required: "נדרש מפתח API של YouTube"
       youtube_api_description: "לחיפוש סרטוני YouTube, עליך להגדיר מפתח API של YouTube Data."

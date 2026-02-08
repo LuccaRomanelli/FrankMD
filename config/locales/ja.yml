@@ -184,6 +184,7 @@ ja:
       preview_hint: "URLを入力するとプレビューが表示されます"
       unknown_format: "不明なフォーマット。YouTubeのURLまたは動画ファイルのパスを入力してください。"
       insert_video: "動画を挿入"
+      use_hugo_shortcode: "HTMLの代わりにHugoショートコードを使用"
       # YouTube search
       youtube_api_required: "YouTube APIキーが必要です"
       youtube_api_description: "YouTube動画を検索するには、YouTube Data APIキーを設定する必要があります。"

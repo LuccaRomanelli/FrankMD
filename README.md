@@ -680,6 +680,53 @@ Examples:
 - "What's New in 2026?" → `whats-new-in-2026`
 - "Codigo & Programacao" → `codigo-programacao`
 
+### Hugo YouTube Shortcode
+
+When embedding YouTube videos, FrankMD can insert a Hugo shortcode (`{{< youtube >}}`) instead of raw HTML. Check the **"Use Hugo shortcode"** checkbox in the video dialog to enable this.
+
+The inserted shortcode looks like:
+
+```
+{{< youtube id="dQw4w9WgXcQ" title="Video Title" >}}
+```
+
+To use this in your Hugo blog, create the shortcode file at `layouts/shortcodes/youtube.html` in your Hugo project:
+
+```html
+<div class="embed-container">
+  <iframe
+    src="https://www.youtube.com/embed/{{ .Get "id" }}"
+    title="{{ with .Get "title" }}{{ . }}{{ else }}YouTube video player{{ end }}"
+    frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen>
+  </iframe>
+</div>
+```
+
+Then add the responsive CSS to your stylesheet (e.g. `assets/css/custom.css` or your theme's styles):
+
+```css
+.embed-container {
+  position: relative;
+  padding-bottom: 56.25%; /* 16:9 aspect ratio */
+  height: 0;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.embed-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+```
+
+**Note:** Hugo ships with a built-in `youtube` shortcode, but it uses a different syntax (`{{< youtube dQw4w9WgXcQ >}}` with a positional parameter). The custom shortcode above matches the named-parameter format (`id="..."`, `title="..."`) that FrankMD generates, and gives you full control over the markup and styling.
+
 ## Themes
 
 FrankMD includes 18 color themes:

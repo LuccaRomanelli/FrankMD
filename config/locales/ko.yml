@@ -184,6 +184,7 @@ ko:
       preview_hint: "URL을 입력하면 미리보기가 표시됩니다"
       unknown_format: "알 수 없는 형식입니다. YouTube URL 또는 동영상 파일 경로를 입력하세요."
       insert_video: "동영상 삽입"
+      use_hugo_shortcode: "HTML 대신 Hugo 숏코드 사용"
       # YouTube 검색
       youtube_api_required: "YouTube API 키가 필요합니다"
       youtube_api_description: "YouTube 동영상을 검색하려면 YouTube Data API 키를 설정해야 합니다."

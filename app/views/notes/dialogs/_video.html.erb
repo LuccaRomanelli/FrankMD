@@ -10,6 +10,18 @@
         <%= render "shared/dialog_header", title: t('dialogs.video.title'), close_action: "click->video-dialog#close", margin_bottom: "mb-0" %>
       </div>
 
+      <!-- Hugo Shortcode Option -->
+      <div class="px-4 mt-2">
+        <label class="inline-flex items-center gap-2 text-xs text-[var(--theme-text-muted)] cursor-pointer">
+          <input
+            type="checkbox"
+            data-video-dialog-target="hugoShortcode"
+            class="rounded border-[var(--theme-border)] text-[var(--theme-accent)] focus:ring-[var(--theme-accent)]"
+          >
+          <%= t('dialogs.video.use_hugo_shortcode') %>
+        </label>
+      </div>
+
       <!-- Tabs -->
       <div class="flex border-b border-[var(--theme-border)] px-4 mt-2" role="tablist" data-action="wheel->video-dialog#onTabWheel">
         <button

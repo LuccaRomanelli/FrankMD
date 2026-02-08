@@ -14,7 +14,8 @@ export default class extends Controller {
     "videoUrl", "videoPreview", "insertVideoBtn",
     "youtubeSearchInput", "youtubeSearchBtn",
     "youtubeSearchStatus", "youtubeSearchResults",
-    "youtubeConfigNotice", "youtubeSearchForm"
+    "youtubeConfigNotice", "youtubeSearchForm",
+    "hugoShortcode"
   ]
 
   connect() {
@@ -26,6 +27,30 @@ export default class extends Controller {
     this.currentTab = "url"
 
     this.checkYoutubeApiEnabled()
+  }
+
+  get useHugoShortcode() {
+    return this.hasHugoShortcodeTarget && this.hugoShortcodeTarget.checked
+  }
+
+  youtubeEmbedCode(videoId, title = "YouTube video player") {
+    if (this.useHugoShortcode) {
+      if (title && title !== "YouTube video player") {
+        return `{{< youtube id="${videoId}" title="${title}" >}}`
+      }
+      return `{{< youtube id="${videoId}" >}}`
+    }
+
+    return `<div class="embed-container">
+  <iframe
+    src="https://www.youtube.com/embed/${videoId}"
+    title="${title}"
+    frameborder="0"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+    referrerpolicy="strict-origin-when-cross-origin"
+    allowfullscreen>
+  </iframe>
+</div>`
   }
 
   async checkYoutubeApiEnabled() {
@@ -250,16 +275,7 @@ export default class extends Controller {
     let embedCode
 
     if (this.detectedVideoType === "youtube") {
-      embedCode = `<div class="embed-container">
-  <iframe
-    src="https://www.youtube.com/embed/${this.detectedVideoData.id}"
-    title="YouTube video player"
-    frameborder="0"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-    referrerpolicy="strict-origin-when-cross-origin"
-    allowfullscreen>
-  </iframe>
-</div>`
+      embedCode = this.youtubeEmbedCode(this.detectedVideoData.id)
     } else if (this.detectedVideoType === "file") {
       const url = this.detectedVideoData.url
       const ext = url.split(".").pop().toLowerCase()
@@ -420,16 +436,7 @@ export default class extends Controller {
       return
     }
 
-    const embedCode = `<div class="embed-container">
-  <iframe
-    src="https://www.youtube.com/embed/${videoId}"
-    title="${videoTitle}"
-    frameborder="0"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-    referrerpolicy="strict-origin-when-cross-origin"
-    allowfullscreen>
-  </iframe>
-</div>`
+    const embedCode = this.youtubeEmbedCode(videoId, videoTitle)
 
     this.dispatch("video-selected", { detail: { embedCode } })
     this.close()

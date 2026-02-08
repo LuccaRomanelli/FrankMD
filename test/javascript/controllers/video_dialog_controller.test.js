@@ -28,6 +28,7 @@ describe("VideoDialogController", () => {
         <div data-video-dialog-target="youtubeSearchResults"></div>
         <div data-video-dialog-target="youtubeConfigNotice"></div>
         <div data-video-dialog-target="youtubeSearchForm"></div>
+        <input type="checkbox" data-video-dialog-target="hugoShortcode" />
       </div>
     `
 
@@ -240,6 +241,20 @@ describe("VideoDialogController", () => {
       expect(embedCode).toContain("youtube.com/embed/abc123")
     })
 
+    it("dispatches Hugo shortcode for YouTube when checkbox is checked", () => {
+      const handler = vi.fn()
+      element.addEventListener("video-dialog:video-selected", handler)
+
+      controller.hugoShortcodeTarget.checked = true
+      controller.detectedVideoType = "youtube"
+      controller.detectedVideoData = { id: "abc123" }
+      controller.insertVideo()
+
+      expect(handler).toHaveBeenCalled()
+      const embedCode = handler.mock.calls[0][0].detail.embedCode
+      expect(embedCode).toBe('{{< youtube id="abc123" >}}')
+    })
+
     it("dispatches video-selected event for video file", () => {
       const handler = vi.fn()
       element.addEventListener("video-dialog:video-selected", handler)
@@ -263,6 +278,39 @@ describe("VideoDialogController", () => {
       controller.insertVideo()
 
       expect(closeSpy).toHaveBeenCalled()
+    })
+  })
+
+  describe("youtubeEmbedCode()", () => {
+    it("returns HTML embed when checkbox is unchecked", () => {
+      controller.hugoShortcodeTarget.checked = false
+      const code = controller.youtubeEmbedCode("abc123", "My Video")
+
+      expect(code).toContain("youtube.com/embed/abc123")
+      expect(code).toContain('title="My Video"')
+      expect(code).toContain("embed-container")
+      expect(code).not.toContain("{{<")
+    })
+
+    it("returns shortcode without title when title is default", () => {
+      controller.hugoShortcodeTarget.checked = true
+      const code = controller.youtubeEmbedCode("abc123", "YouTube video player")
+
+      expect(code).toBe('{{< youtube id="abc123" >}}')
+    })
+
+    it("returns shortcode with title when title is custom", () => {
+      controller.hugoShortcodeTarget.checked = true
+      const code = controller.youtubeEmbedCode("abc123", "My Custom Title")
+
+      expect(code).toBe('{{< youtube id="abc123" title="My Custom Title" >}}')
+    })
+
+    it("returns shortcode without title when title is omitted", () => {
+      controller.hugoShortcodeTarget.checked = true
+      const code = controller.youtubeEmbedCode("abc123")
+
+      expect(code).toBe('{{< youtube id="abc123" >}}')
     })
   })
 
@@ -394,6 +442,23 @@ describe("VideoDialogController", () => {
       const embedCode = handler.mock.calls[0][0].detail.embedCode
       expect(embedCode).toContain("youtube.com/embed/xyz789")
       expect(embedCode).toContain("Test Title")
+    })
+
+    it("dispatches Hugo shortcode with title when checkbox is checked", () => {
+      const handler = vi.fn()
+      element.addEventListener("video-dialog:video-selected", handler)
+
+      controller.hugoShortcodeTarget.checked = true
+      const event = {
+        currentTarget: {
+          dataset: { videoId: "xyz789", videoTitle: "Test Title" }
+        }
+      }
+      controller.selectYoutubeVideo(event)
+
+      expect(handler).toHaveBeenCalled()
+      const embedCode = handler.mock.calls[0][0].detail.embedCode
+      expect(embedCode).toBe('{{< youtube id="xyz789" title="Test Title" >}}')
     })
 
     it("does nothing when videoId is missing", () => {
