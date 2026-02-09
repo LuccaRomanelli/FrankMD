@@ -1,0 +1,126 @@
+/* Local font definitions - vendored for offline use */
+
+/* === UI Font: Inter === */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/inter-latin-400-normal.woff2) format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/inter-latin-500-normal.woff2) format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(/fonts/inter-latin-600-normal.woff2) format("woff2");
+}
+
+/* === Editor Fonts === */
+
+/* JetBrains Mono */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/jetbrains-mono-latin-400-normal.woff2) format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/jetbrains-mono-latin-500-normal.woff2) format("woff2");
+}
+
+/* Source Code Pro */
+@font-face {
+  font-family: "Source Code Pro";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/source-code-pro-latin-400-normal.woff2) format("woff2");
+}
+@font-face {
+  font-family: "Source Code Pro";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/source-code-pro-latin-500-normal.woff2) format("woff2");
+}
+
+/* Roboto Mono */
+@font-face {
+  font-family: "Roboto Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/roboto-mono-latin-400-normal.woff2) format("woff2");
+}
+@font-face {
+  font-family: "Roboto Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/roboto-mono-latin-500-normal.woff2) format("woff2");
+}
+
+/* Fira Code */
+@font-face {
+  font-family: "Fira Code";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/fira-code-latin-400-normal.woff2) format("woff2");
+}
+@font-face {
+  font-family: "Fira Code";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/fira-code-latin-500-normal.woff2) format("woff2");
+}
+
+/* Cascadia Code */
+@font-face {
+  font-family: "Cascadia Code";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/cascadia-code-latin-400-normal.woff2) format("woff2");
+}
+
+/* Hack */
+@font-face {
+  font-family: "Hack";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/hack-latin-400-normal.woff2) format("woff2");
+}
+
+/* DejaVu Mono */
+@font-face {
+  font-family: "DejaVu Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/dejavu-mono-latin-400-normal.woff2) format("woff2");
+}
+
+/* Ubuntu Mono */
+@font-face {
+  font-family: "Ubuntu Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(/fonts/ubuntu-mono-latin-400-normal.woff2) format("woff2");
+}

@@ -8,7 +8,7 @@ pin_all_from "app/javascript/controllers", under: "controllers"
 pin_all_from "app/javascript/lib", under: "lib"
 
 # Markdown parsing
-pin "marked", to: "https://esm.sh/marked@15.0.6"
+pin "marked", to: "marked.js" # @15.0.6 - vendored from esm.sh
 
 # CodeMirror 6
 pin "@codemirror/view", to: "@codemirror--view.js" # @6.39.11

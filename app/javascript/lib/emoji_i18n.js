@@ -45,7 +45,7 @@ async function loadLocaleData(locale) {
   }
 
   try {
-    const url = `https://cdn.jsdelivr.net/npm/emojibase-data@latest/${locale}/compact.json`
+    const url = `/emoji-data/${locale}.json`
     const response = await fetch(url)
     if (!response.ok) {
       throw new Error(`Failed to load emoji data for ${locale}`)
