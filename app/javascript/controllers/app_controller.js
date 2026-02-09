@@ -4,9 +4,6 @@ import { escapeHtml } from "lib/text_utils"
 import { findTableAtPosition, findCodeBlockAtPosition } from "lib/markdown_utils"
 import { allExtensions } from "lib/marked_extensions"
 import { encodePath } from "lib/url_utils"
-import { flattenTree } from "lib/tree_utils"
-import { LINE_NUMBER_MODES, normalizeLineNumberMode } from "lib/line_numbers"
-import { parseIndentSetting } from "lib/indent_utils"
 import {
   DEFAULT_SHORTCUTS,
   createKeyHandler,
@@ -39,10 +36,8 @@ export default class extends Controller {
   ]
 
   static values = {
-    tree: Array,
     initialPath: String,
-    initialNote: Object,
-    config: Object
+    initialNote: Object
   }
 
   connect() {
@@ -50,45 +45,9 @@ export default class extends Controller {
     this.currentFileType = null  // "markdown", "config", or null
     this.expandedFolders = new Set()
 
-    // Editor customization - fonts in alphabetical order, Cascadia Code as default
-    this.editorFonts = [
-      { id: "cascadia-code", name: "Cascadia Code", family: "'Cascadia Code', monospace" },
-      { id: "consolas", name: "Consolas", family: "Consolas, monospace" },
-      { id: "dejavu-mono", name: "DejaVu Sans Mono", family: "'DejaVu Mono', monospace" },
-      { id: "fira-code", name: "Fira Code", family: "'Fira Code', monospace" },
-      { id: "hack", name: "Hack", family: "Hack, monospace" },
-      { id: "jetbrains-mono", name: "JetBrains Mono", family: "'JetBrains Mono', monospace" },
-      { id: "roboto-mono", name: "Roboto Mono", family: "'Roboto Mono', monospace" },
-      { id: "source-code-pro", name: "Source Code Pro", family: "'Source Code Pro', monospace" },
-      { id: "ubuntu-mono", name: "Ubuntu Mono", family: "'Ubuntu Mono', monospace" }
-    ]
-
-    // Load settings from server config (falls back to defaults if not available)
-    const settings = this.hasConfigValue ? (this.configValue.settings || {}) : {}
-    this.currentFont = settings.editor_font || "cascadia-code"
-    this.currentFontSize = parseInt(settings.editor_font_size) || 14
-    // Editor width with sane bounds (40-200 characters)
-    const initWidth = parseInt(settings.editor_width) || 72
-    this.editorWidth = Math.max(40, Math.min(200, initWidth))
-
-    // Preview zoom (tracked for config saving, actual state in preview controller)
-    this.previewZoom = parseInt(settings.preview_zoom) || 100
-
     // Sidebar/Explorer visibility - always start visible
     // (don't persist closed state across sessions)
     this.sidebarVisible = true
-
-    // Typewriter mode - tracked for coordination (actual state in typewriter controller)
-    this.typewriterModeEnabled = settings.typewriter_mode === true
-
-    // Editor indent setting: 0 = tab, 1-6 = spaces (default 2)
-    this.editorIndent = parseIndentSetting(settings.editor_indent)
-
-    // Line number mode - tracked for config reload (actual state in CodeMirror)
-    this.lineNumberMode = normalizeLineNumberMode(
-      settings.editor_line_numbers,
-      LINE_NUMBER_MODES.OFF
-    )
 
     // Track pending config saves to debounce
     this.configSaveTimeout = null
@@ -100,14 +59,10 @@ export default class extends Controller {
     // Debounce timers for performance
     this._tableCheckTimeout = null
 
-    this.renderTree()
     this.setupKeyboardShortcuts()
     this.setupDialogClickOutside()
-    this.applyEditorSettings()
-    this.applyPreviewZoom()
     this.applySidebarVisibility()
     this.initializeTypewriterMode()
-    this.initializeLineNumbers()
     this.setupConfigFileListener()
     this.setupTableEditorListener()
 
@@ -255,6 +210,10 @@ export default class extends Controller {
     return this._getCachedController("scroll-sync", '[data-controller~="scroll-sync"]')
   }
 
+  getEditorConfigController() {
+    return this._getCachedController("editor-config", '[data-controller~="editor-config"]')
+  }
+
   // === URL Management for Bookmarkable URLs ===
 
   handleInitialFile() {
@@ -271,7 +230,7 @@ export default class extends Controller {
         this.updatePathDisplay(displayPath)
         this.expandParentFolders(path)
         this.showEditor(content, fileType)
-        this.renderTree()
+        this.refreshTree()
         return
       }
 
@@ -331,7 +290,7 @@ export default class extends Controller {
         this.editorToolbarTarget.classList.add("hidden")
         this.editorToolbarTarget.classList.remove("flex")
         this.hideStatsPanel()
-        this.renderTree()
+        this.refreshTree()
       }
     }
     window.addEventListener("popstate", this.boundPopstateHandler)
@@ -369,65 +328,6 @@ export default class extends Controller {
       this.editorTarget.classList.add("hidden")
       this.hideStatsPanel()
     }, 5000)
-  }
-
-  // === Tree Rendering ===
-  renderTree() {
-    this.fileTreeTarget.innerHTML = this.buildTreeHTML(this.treeValue)
-  }
-
-  buildTreeHTML(items, depth = 0) {
-    if (!items || items.length === 0) {
-      if (depth === 0) {
-        return `<div class="text-sm text-[var(--theme-text-muted)] p-2">${window.t("sidebar.no_notes_yet")}</div>`
-      }
-      return ""
-    }
-
-    return items.map(item => {
-      if (item.type === "folder") {
-        const isExpanded = this.expandedFolders.has(item.path)
-        return `
-          <div class="tree-folder" data-path="${escapeHtml(item.path)}">
-            <div class="tree-item drop-target" draggable="true"
-              data-action="click->app#toggleFolder contextmenu->app#showContextMenu dragstart->drag-drop#onDragStart dragover->drag-drop#onDragOver dragenter->drag-drop#onDragEnter dragleave->drag-drop#onDragLeave drop->drag-drop#onDrop dragend->drag-drop#onDragEnd"
-              data-path="${escapeHtml(item.path)}" data-type="folder">
-              <svg class="tree-chevron ${isExpanded ? 'expanded' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-              <svg class="tree-icon text-[var(--theme-folder-icon)]" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-              </svg>
-              <span class="truncate">${escapeHtml(item.name)}</span>
-            </div>
-            <div class="tree-children ${isExpanded ? '' : 'hidden'}">
-              ${this.buildTreeHTML(item.children, depth + 1)}
-            </div>
-          </div>
-        `
-      } else {
-        const isSelected = this.currentFile === item.path
-        const isConfig = item.file_type === "config"
-        const icon = isConfig
-          ? `<svg class="tree-icon text-[var(--theme-config-icon)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>`
-          : `<svg class="tree-icon text-[var(--theme-file-icon)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>`
-        // Config files should not be draggable or have context menu
-        const dragAttrs = isConfig ? '' : 'draggable="true" data-action="click->app#selectFile contextmenu->app#showContextMenu dragstart->drag-drop#onDragStart dragend->drag-drop#onDragEnd"'
-        const clickAction = isConfig ? 'data-action="click->app#selectFile"' : ''
-        return `
-          <div class="tree-item ${isSelected ? 'selected' : ''}" ${isConfig ? clickAction : dragAttrs}
-            data-path="${escapeHtml(item.path)}" data-type="file" data-file-type="${item.file_type || 'markdown'}">
-            ${icon}
-            <span class="truncate">${escapeHtml(item.name)}</span>
-          </div>
-        `
-      }
-    }).join("")
   }
 
   toggleFolder(event) {
@@ -508,7 +408,7 @@ export default class extends Controller {
       this.expandParentFolders(path)
 
       this.showEditor(data.content, fileType)
-      this.renderTree()
+      this.refreshTree()
 
       // Update URL for bookmarkability
       if (updateHistory) {
@@ -612,7 +512,8 @@ export default class extends Controller {
       this.checkTableAtCursor()
 
       // Typewriter scroll centering works regardless of preview
-      if (this.typewriterModeEnabled) {
+      const configCtrl = this.getEditorConfigController()
+      if (configCtrl && configCtrl.typewriterModeEnabled) {
         this.maintainTypewriterScroll()
       }
     }
@@ -674,69 +575,14 @@ export default class extends Controller {
 
   // Reload configuration from server and apply changes
   async reloadConfig() {
-    try {
-      const response = await fetch("/config", {
-        headers: { "Accept": "application/json" }
-      })
-
-      if (!response.ok) {
-        console.warn("Failed to reload config")
-        return
-      }
-
-      const data = await response.json()
-      const settings = data.settings || {}
-
-      // Apply UI settings
-      const oldFont = this.currentFont
-      const oldFontSize = this.currentFontSize
-      const oldEditorWidth = this.editorWidth
-      const oldZoom = this.previewZoom
-      const oldLineNumberMode = this.lineNumberMode
-
-      this.currentFont = settings.editor_font || "cascadia-code"
-      this.currentFontSize = parseInt(settings.editor_font_size) || 14
-      const reloadWidth = parseInt(settings.editor_width) || 72
-      this.editorWidth = Math.max(40, Math.min(200, reloadWidth))
-      this.previewZoom = parseInt(settings.preview_zoom) || 100
-      this.editorIndent = parseIndentSetting(settings.editor_indent)
-      this.lineNumberMode = normalizeLineNumberMode(
-        settings.editor_line_numbers,
-        LINE_NUMBER_MODES.OFF
-      )
-
-      // Apply changes if they differ
-      if (this.currentFont !== oldFont || this.currentFontSize !== oldFontSize || this.editorWidth !== oldEditorWidth) {
-        this.applyEditorSettings()
-      }
-      if (this.previewZoom !== oldZoom) {
-        const previewController = this.getPreviewController()
-        if (previewController) {
-          previewController.zoomValue = this.previewZoom
-        }
-      }
-      if (this.lineNumberMode !== oldLineNumberMode) {
-        const codemirrorController = this.getCodemirrorController()
-        if (codemirrorController) {
-          codemirrorController.setLineNumberMode(this.lineNumberMode)
-        }
-      }
-
-      // Notify theme controller to reload (dispatch custom event)
-      const themeChanged = settings.theme
-      if (themeChanged) {
-        window.dispatchEvent(new CustomEvent("frankmd:config-changed", {
-          detail: { theme: settings.theme }
-        }))
-      }
-
+    const configCtrl = this.getEditorConfigController()
+    if (configCtrl) {
+      await configCtrl.reload()
       const autosaveCtrl = this.getAutosaveController()
       if (autosaveCtrl) {
         autosaveCtrl.showSaveStatus(window.t("status.config_applied"))
         setTimeout(() => autosaveCtrl.showSaveStatus(""), 2000)
       }
-    } catch (error) {
-      console.warn("Error reloading config:", error)
     }
   }
 
@@ -841,7 +687,10 @@ export default class extends Controller {
         "customize"
       )
       if (customizeController) {
-        customizeController.open(this.currentFont, this.currentFontSize)
+        const configCtrl = this.getEditorConfigController()
+        const font = configCtrl ? configCtrl.currentFont : "cascadia-code"
+        const fontSize = configCtrl ? configCtrl.currentFontSize : 14
+        customizeController.open(font, fontSize)
       }
     }
   }
@@ -850,31 +699,27 @@ export default class extends Controller {
   onCustomizeApplied(event) {
     const { font, fontSize } = event.detail
 
-    this.currentFont = font
-    this.currentFontSize = fontSize
-
-    // Save to server config
+    // Save to server config (will trigger reload)
     this.saveConfig({
       editor_font: font,
       editor_font_size: fontSize
     })
 
-    // Apply to editor
-    this.applyEditorSettings()
+    // Apply immediately via config controller
+    const configCtrl = this.getEditorConfigController()
+    if (configCtrl) {
+      configCtrl.fontValue = font
+      configCtrl.fontSizeValue = fontSize
+    }
   }
 
   applyEditorSettings() {
-    const font = this.editorFonts.find(f => f.id === this.currentFont)
-    const codemirrorController = this.getCodemirrorController()
-
-    if (codemirrorController && font) {
-      codemirrorController.setFontFamily(font.family)
-      codemirrorController.setFontSize(this.currentFontSize)
-      codemirrorController.setLineNumberMode(this.lineNumberMode)
+    const configCtrl = this.getEditorConfigController()
+    if (configCtrl) {
+      configCtrl.applyFont()
+      configCtrl.applyEditorWidth()
+      configCtrl.applyLineNumbers()
     }
-
-    // Apply editor width as CSS custom property
-    document.documentElement.style.setProperty("--editor-width", `${this.editorWidth}ch`)
   }
 
   // === Editor Width Adjustment ===
@@ -887,51 +732,46 @@ export default class extends Controller {
   increaseEditorWidth() {
     const maxWidth = this.constructor.MAX_EDITOR_WIDTH
     const step = this.constructor.EDITOR_WIDTH_STEP
+    const configCtrl = this.getEditorConfigController()
+    const currentWidth = configCtrl ? configCtrl.editorWidth : 72
 
-    if (this.editorWidth >= maxWidth) {
+    if (currentWidth >= maxWidth) {
       this.showTemporaryMessage(`Maximum width (${maxWidth}ch)`)
       return
     }
 
-    this.editorWidth = Math.min(this.editorWidth + step, maxWidth)
-    this.applyEditorWidth()
-    this.saveConfig({ editor_width: this.editorWidth })
-    this.showTemporaryMessage(`Editor width: ${this.editorWidth}ch`)
+    const newWidth = Math.min(currentWidth + step, maxWidth)
+    if (configCtrl) configCtrl.editorWidthValue = newWidth
+    this.saveConfig({ editor_width: newWidth })
+    this.showTemporaryMessage(`Editor width: ${newWidth}ch`)
   }
 
   decreaseEditorWidth() {
     const minWidth = this.constructor.MIN_EDITOR_WIDTH
     const step = this.constructor.EDITOR_WIDTH_STEP
+    const configCtrl = this.getEditorConfigController()
+    const currentWidth = configCtrl ? configCtrl.editorWidth : 72
 
-    if (this.editorWidth <= minWidth) {
+    if (currentWidth <= minWidth) {
       this.showTemporaryMessage(`Minimum width (${minWidth}ch)`)
       return
     }
 
-    this.editorWidth = Math.max(this.editorWidth - step, minWidth)
-    this.applyEditorWidth()
-    this.saveConfig({ editor_width: this.editorWidth })
-    this.showTemporaryMessage(`Editor width: ${this.editorWidth}ch`)
-  }
-
-  applyEditorWidth() {
-    document.documentElement.style.setProperty("--editor-width", `${this.editorWidth}ch`)
+    const newWidth = Math.max(currentWidth - step, minWidth)
+    if (configCtrl) configCtrl.editorWidthValue = newWidth
+    this.saveConfig({ editor_width: newWidth })
+    this.showTemporaryMessage(`Editor width: ${newWidth}ch`)
   }
 
   // === Line Numbers - Now handled by CodeMirror ===
 
-  initializeLineNumbers() {
-    const codemirrorController = this.getCodemirrorController()
-    if (codemirrorController) {
-      codemirrorController.setLineNumberMode(this.lineNumberMode)
-    }
-  }
-
   toggleLineNumberMode() {
     const codemirrorController = this.getCodemirrorController()
     if (codemirrorController) {
-      this.lineNumberMode = codemirrorController.toggleLineNumberMode()
-      this.saveConfig({ editor_line_numbers: this.lineNumberMode })
+      const newMode = codemirrorController.toggleLineNumberMode()
+      const configCtrl = this.getEditorConfigController()
+      if (configCtrl) configCtrl.lineNumbersValue = newMode
+      this.saveConfig({ editor_line_numbers: newMode })
     }
   }
 
@@ -1058,7 +898,9 @@ export default class extends Controller {
   initializeTypewriterMode() {
     const typewriterController = this.getTypewriterController()
     if (typewriterController) {
-      typewriterController.setEnabled(this.typewriterModeEnabled)
+      const configCtrl = this.getEditorConfigController()
+      const enabled = configCtrl ? configCtrl.typewriterModeEnabled : false
+      typewriterController.setEnabled(enabled)
     }
   }
 
@@ -1078,7 +920,6 @@ export default class extends Controller {
   // Handle typewriter:toggled event
   onTypewriterToggled(event) {
     const { enabled } = event.detail
-    this.typewriterModeEnabled = enabled
     this.saveConfig({ typewriter_mode: enabled })
 
     // Toggle typewriter mode on preview controller
@@ -1144,8 +985,8 @@ export default class extends Controller {
 
   // === File Finder (Ctrl+P) - Delegates to file_finder_controller ===
   openFileFinder() {
-    // Build flat list of all files from tree
-    const files = flattenTree(this.treeValue)
+    // Build flat list of all files from DOM tree
+    const files = this.getFilesFromTree()
 
     // Find the file-finder controller and call open
     const fileFinderElement = document.querySelector('[data-controller~="file-finder"]')
@@ -1158,6 +999,17 @@ export default class extends Controller {
         fileFinderController.open(files)
       }
     }
+  }
+
+  // Build flat list of files from DOM tree for file finder
+  getFilesFromTree() {
+    const fileElements = this.fileTreeTarget.querySelectorAll('[data-type="file"]')
+    return Array.from(fileElements).map(el => ({
+      path: el.dataset.path,
+      name: el.dataset.path.split("/").pop().replace(/\.md$/, ""),
+      type: "file",
+      file_type: el.dataset.fileType || "markdown"
+    }))
   }
 
   // Handle file selected event from file_finder_controller
@@ -1488,7 +1340,8 @@ export default class extends Controller {
   // Handle preview zoom changed event - save to config
   onPreviewZoomChanged(event) {
     const { zoom } = event.detail
-    this.previewZoom = zoom
+    const configCtrl = this.getEditorConfigController()
+    if (configCtrl) configCtrl.previewZoomValue = zoom
     this.saveConfig({ preview_zoom: zoom })
   }
 
@@ -1517,17 +1370,17 @@ export default class extends Controller {
       this.expandedFolders.add(expandPath)
     }
 
-    await this.refreshTree()
+    // Tree is already updated by Turbo Stream
     await this.loadFile(path)
   }
 
-  async onFolderCreated(event) {
+  onFolderCreated(event) {
     const { path } = event.detail
     this.expandedFolders.add(path)
-    await this.refreshTree()
+    // Tree is already updated by Turbo Stream
   }
 
-  async onFileRenamed(event) {
+  onFileRenamed(event) {
     const { oldPath, newPath, type } = event.detail
 
     // For folder renames, check if current file is inside the renamed folder
@@ -1545,10 +1398,10 @@ export default class extends Controller {
       this.updateUrl(newPath)
     }
 
-    await this.refreshTree()
+    // Tree is already updated by Turbo Stream
   }
 
-  async onFileDeleted(event) {
+  onFileDeleted(event) {
     const { path } = event.detail
 
     // Clear editor if deleted file was currently open
@@ -1560,7 +1413,7 @@ export default class extends Controller {
       this.hideStatsPanel()
     }
 
-    await this.refreshTree()
+    // Tree is already updated by Turbo Stream
   }
 
   // File Operations - delegate to file-operations controller
@@ -1592,12 +1445,12 @@ export default class extends Controller {
 
   async refreshTree() {
     try {
-      const response = await fetch("/notes/tree", {
-        headers: { "Accept": "application/json" }
-      })
+      const expanded = [...this.expandedFolders].join(",")
+      const selected = this.currentFile || ""
+      const response = await fetch(`/notes/tree?expanded=${encodeURIComponent(expanded)}&selected=${encodeURIComponent(selected)}`)
       if (response.ok) {
-        this.treeValue = await response.json()
-        this.renderTree()
+        const html = await response.text()
+        this.fileTreeTarget.innerHTML = html
       }
     } catch (error) {
       console.error("Error refreshing tree:", error)
@@ -1664,7 +1517,8 @@ export default class extends Controller {
 
   // Get the current indent string
   getIndentString() {
-    return this.editorIndent || "  "
+    const configCtrl = this.getEditorConfigController()
+    return (configCtrl ? configCtrl.editorIndent : 2) || "  "
   }
 
   // === Text Format Menu ===

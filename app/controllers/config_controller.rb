@@ -6,6 +6,13 @@ class ConfigController < ApplicationController
 
   before_action :set_config
 
+  # GET /config/editor
+  # Returns the editor config partial for Turbo replacement
+  def editor
+    @config_obj = @config
+    render partial: "config/editor_config", layout: false
+  end
+
   # GET /config
   # Returns UI settings and feature availability
   def show

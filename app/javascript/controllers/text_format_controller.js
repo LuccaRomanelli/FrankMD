@@ -473,20 +473,30 @@ export default class extends Controller {
 
     event.preventDefault()
 
-    // Create a textarea adapter for menu positioning
-    const textarea = document.querySelector('[data-app-target="textarea"]')
-    if (textarea) {
-      this.openAtPosition(textarea, event.clientX, event.clientY)
-    }
+    const selectionData = { start: from, end: to, text: selectedText }
+    this.open(selectionData, event.clientX, event.clientY)
   }
 
   // Open format menu from keyboard shortcut (Ctrl+M) using CodeMirror
   openFromKeyboard(codemirrorController) {
     if (!codemirrorController) return
 
-    const textarea = document.querySelector('[data-app-target="textarea"]')
-    if (textarea) {
-      this.openAtCursor(textarea)
+    const { from, to, text: selectedText } = codemirrorController.getSelection()
+    if (from === to) return
+    if (!selectedText.trim()) return
+
+    const selectionData = { start: from, end: to, text: selectedText }
+
+    // Get cursor coordinates from CodeMirror for menu positioning
+    const editor = codemirrorController.editor
+    const coords = editor?.coordsAtPos(to)
+    if (coords) {
+      this.open(selectionData, coords.left, coords.bottom + 4)
+    } else {
+      // Fallback: open at center of editor
+      const container = codemirrorController.element
+      const rect = container.getBoundingClientRect()
+      this.open(selectionData, rect.left + rect.width / 2, rect.top + rect.height / 2)
     }
   }
 

@@ -92,4 +92,59 @@ class FoldersControllerTest < ActionDispatch::IntegrationTest
     post rename_folder_url(path: "nonexistent"), params: { new_path: "new" }, as: :json
     assert_response :not_found
   end
+
+  # === turbo stream responses ===
+
+  test "create responds with turbo stream when requested" do
+    post create_folder_url(path: "turbo_folder"),
+      headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :created
+
+    assert_includes response.content_type, "turbo-stream"
+    assert_includes response.body, 'action="update"'
+    assert_includes response.body, 'target="file-tree-content"'
+    assert_includes response.body, 'data-path="turbo_folder"'
+    assert_includes response.body, 'data-type="folder"'
+  end
+
+  test "create turbo stream includes expanded folder state" do
+    create_test_folder("parent")
+    create_test_note("parent/note.md")
+
+    post create_folder_url(path: "new_folder"),
+      params: { expanded: "parent" },
+      headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :created
+
+    assert_includes response.body, 'class="tree-chevron expanded"'
+  end
+
+  test "destroy responds with turbo stream when requested" do
+    create_test_folder("empty_folder")
+
+    delete destroy_folder_url(path: "empty_folder"),
+      headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :success
+
+    assert_includes response.content_type, "turbo-stream"
+    assert_includes response.body, 'action="update"'
+    assert_includes response.body, 'target="file-tree-content"'
+    refute_includes response.body, 'data-path="empty_folder"'
+  end
+
+  test "rename responds with turbo stream when requested" do
+    create_test_folder("old_folder")
+    create_test_note("old_folder/note.md")
+
+    post rename_folder_url(path: "old_folder"),
+      params: { new_path: "new_folder", expanded: "" },
+      headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :success
+
+    assert_includes response.content_type, "turbo-stream"
+    assert_includes response.body, 'action="update"'
+    assert_includes response.body, 'target="file-tree-content"'
+    assert_includes response.body, 'data-path="new_folder"'
+    refute_includes response.body, 'data-path="old_folder"'
+  end
 end

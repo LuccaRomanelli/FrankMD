@@ -12,7 +12,13 @@ class FoldersController < ApplicationController
     end
 
     if @folder.create
-      render json: { path: @folder.path, message: t("success.folder_created") }, status: :created
+      respond_to do |format|
+        format.turbo_stream {
+          load_tree_for_turbo_stream
+          render status: :created
+        }
+        format.any { render json: { path: @folder.path, message: t("success.folder_created") }, status: :created }
+      end
     else
       render json: { error: @folder.errors.full_messages.join(", ") }, status: :unprocessable_entity
     end
@@ -20,7 +26,10 @@ class FoldersController < ApplicationController
 
   def destroy
     if @folder.destroy
-      render json: { message: t("success.folder_deleted") }
+      respond_to do |format|
+        format.turbo_stream { load_tree_for_turbo_stream }
+        format.any { render json: { message: t("success.folder_deleted") } }
+      end
     else
       error_message = @folder.errors.full_messages.join(", ")
       status = error_message.include?("not found") ? :not_found : :unprocessable_entity
@@ -33,7 +42,10 @@ class FoldersController < ApplicationController
     new_path = params[:new_path].to_s
 
     if @folder.rename(new_path)
-      render json: { old_path: old_path, new_path: @folder.path, message: t("success.folder_renamed") }
+      respond_to do |format|
+        format.turbo_stream { load_tree_for_turbo_stream(selected: @folder.path) }
+        format.any { render json: { old_path: old_path, new_path: @folder.path, message: t("success.folder_renamed") } }
+      end
     else
       error_message = @folder.errors.full_messages.join(", ")
       status = error_message.include?("not found") ? :not_found : :unprocessable_entity
@@ -45,5 +57,11 @@ class FoldersController < ApplicationController
 
   def set_folder
     @folder = Folder.new(path: params[:path].to_s)
+  end
+
+  def load_tree_for_turbo_stream(selected: nil)
+    @tree = Note.all
+    @expanded_folders = params[:expanded].to_s.split(",").to_set
+    @selected_file = selected || params[:selected].to_s
   end
 end

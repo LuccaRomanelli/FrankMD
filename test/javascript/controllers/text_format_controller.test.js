@@ -796,20 +796,35 @@ describe("TextFormatController", () => {
       }
     })
 
-    it("opens menu when text is selected", () => {
-      // Set up a textarea for the adapter
-      const textarea = document.createElement("textarea")
-      textarea.value = "Hello World"
-      textarea.setSelectionRange(0, 5)
-      textarea.setAttribute("data-app-target", "textarea")
-      document.body.appendChild(textarea)
-
+    it("opens menu when text is selected in CodeMirror", () => {
       const event = { clientX: 100, clientY: 200, preventDefault: vi.fn() }
 
       controller.onContextMenu(event, mockCm, true)
 
       expect(event.preventDefault).toHaveBeenCalled()
-      textarea.remove()
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(false)
+      expect(controller.selectionData).toEqual({ start: 0, end: 5, text: "Hello" })
+    })
+
+    it("positions menu at click coordinates", () => {
+      const event = { clientX: 150, clientY: 250, preventDefault: vi.fn() }
+
+      controller.onContextMenu(event, mockCm, true)
+
+      expect(controller.menuTarget.style.left).toBe("150px")
+      expect(controller.menuTarget.style.top).toBe("250px")
+    })
+
+    it("does not require a textarea element in the DOM", () => {
+      // Ensure no textarea with data-app-target exists
+      const existing = document.querySelector('[data-app-target="textarea"]')
+      expect(existing).toBeNull()
+
+      const event = { clientX: 100, clientY: 200, preventDefault: vi.fn() }
+      controller.onContextMenu(event, mockCm, true)
+
+      // Menu should still open using CodeMirror selection directly
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(false)
     })
 
     it("does not open when no text is selected", () => {
@@ -819,6 +834,17 @@ describe("TextFormatController", () => {
       controller.onContextMenu(event, mockCm, true)
 
       expect(event.preventDefault).not.toHaveBeenCalled()
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
+    })
+
+    it("does not open when selection is only whitespace", () => {
+      mockCm.getSelection.mockReturnValue({ from: 5, to: 8, text: "   " })
+
+      const event = { clientX: 100, clientY: 200, preventDefault: vi.fn() }
+      controller.onContextMenu(event, mockCm, true)
+
+      expect(event.preventDefault).not.toHaveBeenCalled()
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
     })
 
     it("does not open when not markdown", () => {
@@ -826,6 +852,74 @@ describe("TextFormatController", () => {
       controller.onContextMenu(event, mockCm, false)
 
       expect(event.preventDefault).not.toHaveBeenCalled()
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
+    })
+
+    it("does not open when codemirrorController is null", () => {
+      const event = { clientX: 100, clientY: 200, preventDefault: vi.fn() }
+      controller.onContextMenu(event, null, true)
+
+      expect(event.preventDefault).not.toHaveBeenCalled()
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
+    })
+  })
+
+  describe("openFromKeyboard()", () => {
+    let mockCm
+
+    beforeEach(() => {
+      mockCm = {
+        getSelection: vi.fn(() => ({ from: 0, to: 5, text: "Hello" })),
+        editor: { coordsAtPos: vi.fn(() => ({ left: 120, bottom: 180 })) },
+        element: { getBoundingClientRect: vi.fn(() => ({ left: 50, top: 100, width: 400, height: 300 })) },
+      }
+    })
+
+    it("opens menu when text is selected in CodeMirror", () => {
+      controller.openFromKeyboard(mockCm)
+
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(false)
+      expect(controller.selectionData).toEqual({ start: 0, end: 5, text: "Hello" })
+    })
+
+    it("positions menu using CodeMirror cursor coordinates", () => {
+      controller.openFromKeyboard(mockCm)
+
+      expect(mockCm.editor.coordsAtPos).toHaveBeenCalledWith(5)
+      expect(controller.menuTarget.style.left).toBe("120px")
+      expect(controller.menuTarget.style.top).toBe("184px") // bottom + 4
+    })
+
+    it("falls back to element center when coordsAtPos returns null", () => {
+      mockCm.editor.coordsAtPos.mockReturnValue(null)
+
+      controller.openFromKeyboard(mockCm)
+
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(false)
+      expect(controller.menuTarget.style.left).toBe("250px") // 50 + 400/2
+      expect(controller.menuTarget.style.top).toBe("250px") // 100 + 300/2
+    })
+
+    it("does not open when no text is selected", () => {
+      mockCm.getSelection.mockReturnValue({ from: 5, to: 5, text: "" })
+
+      controller.openFromKeyboard(mockCm)
+
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
+    })
+
+    it("does not open when selection is only whitespace", () => {
+      mockCm.getSelection.mockReturnValue({ from: 0, to: 3, text: "   " })
+
+      controller.openFromKeyboard(mockCm)
+
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
+    })
+
+    it("does not open when codemirrorController is null", () => {
+      controller.openFromKeyboard(null)
+
+      expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
     })
   })
 })

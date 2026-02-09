@@ -152,4 +152,44 @@ class ConfigControllerTest < ActionDispatch::IntegrationTest
     # New font added
     assert_includes content, "editor_font = fira-code"
   end
+
+  # === editor partial ===
+
+  test "editor returns HTML partial with config data attributes" do
+    get "/config/editor"
+    assert_response :success
+
+    assert_includes response.body, 'id="editor-config"'
+    assert_includes response.body, 'data-controller="editor-config"'
+    assert_includes response.body, "data-editor-config-font-value"
+    assert_includes response.body, "data-editor-config-font-size-value"
+    assert_includes response.body, "data-editor-config-editor-width-value"
+    assert_includes response.body, "data-editor-config-preview-zoom-value"
+    assert_includes response.body, "data-editor-config-theme-value"
+  end
+
+  test "editor partial reflects configured values" do
+    @test_notes_dir.join(".fed").write(<<~CONFIG)
+      editor_font = hack
+      editor_font_size = 20
+      theme = gruvbox
+    CONFIG
+
+    get "/config/editor"
+    assert_response :success
+
+    assert_includes response.body, 'data-editor-config-font-value="hack"'
+    assert_includes response.body, 'data-editor-config-font-size-value="20"'
+    assert_includes response.body, 'data-editor-config-theme-value="gruvbox"'
+  end
+
+  test "editor partial uses defaults when no config file" do
+    get "/config/editor"
+    assert_response :success
+
+    assert_includes response.body, 'data-editor-config-font-value="cascadia-code"'
+    assert_includes response.body, 'data-editor-config-font-size-value="14"'
+    assert_includes response.body, 'data-editor-config-editor-width-value="72"'
+    assert_includes response.body, 'data-editor-config-preview-zoom-value="100"'
+  end
 end

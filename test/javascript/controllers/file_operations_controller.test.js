@@ -47,7 +47,9 @@ describe("FileOperationsController", () => {
     // Mock fetch
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ path: "test.md" })
+      headers: { get: () => "application/json" },
+      json: () => Promise.resolve({ path: "test.md" }),
+      text: () => Promise.resolve('{"path": "test.md"}')
     })
 
     // Mock confirm
@@ -268,9 +270,10 @@ describe("FileOperationsController", () => {
 
       await controller.submitNewItem()
 
-      expect(global.fetch).toHaveBeenCalledWith("/folders/newfolder", expect.objectContaining({
-        method: "POST"
-      }))
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/folders/newfolder"),
+        expect.objectContaining({ method: "POST" })
+      )
     })
 
     it("dispatches file-created event", async () => {

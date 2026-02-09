@@ -5,11 +5,11 @@ Rails.application.routes.draw do
   get "notes/tree", to: "notes#tree"
   get "notes/search", to: "notes#search"
   post "notes", to: "notes#create"  # For Hugo template creation (no path in URL)
-  post "notes/*path/rename", to: "notes#rename", as: :rename_note
-  get "notes/*path", to: "notes#show", as: :note
-  post "notes/*path", to: "notes#create", as: :create_note
-  patch "notes/*path", to: "notes#update", as: :update_note
-  delete "notes/*path", to: "notes#destroy", as: :destroy_note
+  post "notes/*path/rename", to: "notes#rename", as: :rename_note, format: false
+  get "notes/*path", to: "notes#show", as: :note, format: false
+  post "notes/*path", to: "notes#create", as: :create_note, format: false
+  patch "notes/*path", to: "notes#update", as: :update_note, format: false
+  delete "notes/*path", to: "notes#destroy", as: :destroy_note, format: false
 
   # Folders API
   post "folders/*path/rename", to: "folders#rename", as: :rename_folder
@@ -39,6 +39,7 @@ Rails.application.routes.draw do
   post "ai/generate_image", to: "ai#generate_image"
 
   # Config API
+  get "config/editor", to: "config#editor"
   get "config", to: "config#show"
   patch "config", to: "config#update"
 

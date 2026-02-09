@@ -49,13 +49,14 @@
 
   <!-- File Tree -->
   <div
+    id="file-tree-content"
     class="flex-1 overflow-y-auto p-2"
     data-app-target="fileTree"
     data-controller="drag-drop"
     data-drag-drop-target="tree"
     data-action="dragover->drag-drop#onDragOverRoot dragenter->drag-drop#onDragEnterRoot dragleave->drag-drop#onDragLeaveRoot drop->drag-drop#onDropToRoot drag-drop:item-moved->app#onItemMoved"
   >
-    <!-- Tree will be rendered by JavaScript -->
+    <%= render "notes/file_tree" %>
   </div>
 
   <!-- Document Stats Panel -->

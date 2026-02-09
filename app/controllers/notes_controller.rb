@@ -7,11 +7,17 @@ class NotesController < ApplicationController
     @tree = Note.all
     @initial_path = params[:file]
     @initial_note = load_initial_note if @initial_path.present?
+    @config_obj = Config.new
     @config = load_config
+    @expanded_folders = Set.new
+    @selected_file = @initial_path || ""
   end
 
   def tree
-    render json: Note.all
+    @tree = Note.all
+    @expanded_folders = params[:expanded].to_s.split(",").to_set
+    @selected_file = params[:selected].to_s
+    render partial: "notes/file_tree", layout: false
   end
 
   def show
@@ -32,7 +38,10 @@ class NotesController < ApplicationController
     @tree = Note.all
     @initial_path = path
     @initial_note = load_initial_note
+    @config_obj = Config.new
     @config = load_config
+    @expanded_folders = Set.new
+    @selected_file = path
     render :index, formats: [ :html ]
   end
 
@@ -60,7 +69,13 @@ class NotesController < ApplicationController
     end
 
     if @note.save
-      render json: { path: @note.path, message: t("success.note_created") }, status: :created
+      respond_to do |format|
+        format.turbo_stream {
+          load_tree_for_turbo_stream(selected: @note.path)
+          render status: :created
+        }
+        format.any { render json: { path: @note.path, message: t("success.note_created") }, status: :created }
+      end
     else
       render json: { error: @note.errors.full_messages.join(", ") }, status: :unprocessable_entity
     end
@@ -78,7 +93,10 @@ class NotesController < ApplicationController
 
   def destroy
     if @note.destroy
-      render json: { message: t("success.note_deleted") }
+      respond_to do |format|
+        format.turbo_stream { load_tree_for_turbo_stream }
+        format.any { render json: { message: t("success.note_deleted") } }
+      end
     else
       render json: { error: @note.errors.full_messages.join(", ") }, status: :not_found
     end
@@ -94,7 +112,10 @@ class NotesController < ApplicationController
     old_path = @note.path
 
     if @note.rename(new_path)
-      render json: { old_path: old_path, new_path: @note.path, message: t("success.note_renamed") }
+      respond_to do |format|
+        format.turbo_stream { load_tree_for_turbo_stream(selected: @note.path) }
+        format.any { render json: { old_path: old_path, new_path: @note.path, message: t("success.note_renamed") } }
+      end
     else
       render json: { error: @note.errors.full_messages.join(", ") }, status: :unprocessable_entity
     end
@@ -118,6 +139,12 @@ class NotesController < ApplicationController
   def set_note
     path = Note.normalize_path(params[:path])
     @note = Note.new(path: path)
+  end
+
+  def load_tree_for_turbo_stream(selected: nil)
+    @tree = Note.all
+    @expanded_folders = params[:expanded].to_s.split(",").to_set
+    @selected_file = selected || params[:selected].to_s
   end
 
   def load_initial_note

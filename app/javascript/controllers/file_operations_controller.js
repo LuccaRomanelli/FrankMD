@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { Turbo } from "@hotwired/turbo-rails"
 import { encodePath } from "lib/url_utils"
 
 // File Operations Controller
@@ -29,6 +30,30 @@ export default class extends Controller {
 
   get csrfToken() {
     return document.querySelector('meta[name="csrf-token"]')?.content
+  }
+
+  get expandedFolders() {
+    const appEl = document.querySelector('[data-controller~="app"]')
+    if (!appEl) return ""
+    const app = this.application.getControllerForElementAndIdentifier(appEl, "app")
+    return app?.expandedFolders ? [...app.expandedFolders].join(",") : ""
+  }
+
+  get turboStreamHeaders() {
+    return {
+      "Accept": "text/vnd.turbo-stream.html, application/json",
+      "X-CSRF-Token": this.csrfToken
+    }
+  }
+
+  async processTurboStreamResponse(response) {
+    const contentType = response.headers.get("content-type") || ""
+    if (contentType.includes("turbo-stream")) {
+      const html = await response.text()
+      Turbo.renderStreamMessage(html)
+      return { turboStream: true }
+    }
+    return response.json()
   }
 
   setupContextMenuClose() {
@@ -207,6 +232,7 @@ export default class extends Controller {
 
   async createNote(name, parent, template) {
     let response
+    const expanded = this.expandedFolders
 
     if (template === "hugo") {
       // Hugo posts: server generates path and content
@@ -214,10 +240,10 @@ export default class extends Controller {
       response = await fetch("/notes", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": this.csrfToken
+          ...this.turboStreamHeaders,
+          "Content-Type": "application/json"
         },
-        body: JSON.stringify({ template: "hugo", title, parent: parent || "" })
+        body: JSON.stringify({ template: "hugo", title, parent: parent || "", expanded })
       })
     } else {
       // Regular notes use simple filename
@@ -227,10 +253,10 @@ export default class extends Controller {
       response = await fetch(`/notes/${encodePath(path)}`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": this.csrfToken
+          ...this.turboStreamHeaders,
+          "Content-Type": "application/json"
         },
-        body: JSON.stringify({ content: "" })
+        body: JSON.stringify({ content: "", expanded })
       })
     }
 
@@ -239,18 +265,36 @@ export default class extends Controller {
       throw new Error(data.error || window.t("errors.failed_to_create"))
     }
 
-    const data = await response.json()
-    this.dispatch("file-created", { detail: { path: data.path } })
+    const data = await this.processTurboStreamResponse(response)
+    const path = data.turboStream ? this.inferCreatedPath(name, parent, template) : data.path
+    this.dispatch("file-created", { detail: { path } })
+  }
+
+  // Infer the path for a created note when using turbo stream (no JSON body)
+  inferCreatedPath(name, parent, template) {
+    if (template === "hugo") {
+      // For Hugo posts, find the newly created file in the tree DOM
+      const treeEl = document.getElementById("file-tree-content")
+      if (treeEl) {
+        const items = treeEl.querySelectorAll('[data-type="file"]')
+        const slug = name.replace(/\.md$/, "").toLowerCase().replace(/[^a-z0-9]+/g, "-")
+        for (const item of items) {
+          if (item.dataset.path?.includes(slug)) return item.dataset.path
+        }
+      }
+      return name
+    }
+    const fileName = name.endsWith(".md") ? name : `${name}.md`
+    return parent ? `${parent}/${fileName}` : fileName
   }
 
   async createFolder(name, parent) {
     const path = parent ? `${parent}/${name}` : name
+    const expanded = this.expandedFolders
 
-    const response = await fetch(`/folders/${encodePath(path)}`, {
+    const response = await fetch(`/folders/${encodePath(path)}?expanded=${encodeURIComponent(expanded)}`, {
       method: "POST",
-      headers: {
-        "X-CSRF-Token": this.csrfToken
-      }
+      headers: this.turboStreamHeaders
     })
 
     if (!response.ok) {
@@ -258,6 +302,7 @@ export default class extends Controller {
       throw new Error(data.error || window.t("errors.failed_to_create"))
     }
 
+    await this.processTurboStreamResponse(response)
     this.dispatch("folder-created", { detail: { path } })
   }
 
@@ -312,19 +357,22 @@ export default class extends Controller {
 
     try {
       const endpoint = this.contextItem.type === "file" ? "notes" : "folders"
+      const expanded = this.expandedFolders
       const response = await fetch(`/${endpoint}/${encodePath(this.contextItem.path)}/rename`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": this.csrfToken
+          ...this.turboStreamHeaders,
+          "Content-Type": "application/json"
         },
-        body: JSON.stringify({ new_path: newPath })
+        body: JSON.stringify({ new_path: newPath, expanded })
       })
 
       if (!response.ok) {
         const data = await response.json()
         throw new Error(data.error || window.t("errors.failed_to_rename"))
       }
+
+      await this.processTurboStreamResponse(response)
 
       this.dispatch("file-renamed", {
         detail: {
@@ -357,17 +405,18 @@ export default class extends Controller {
 
     try {
       const endpoint = this.contextItem.type === "file" ? "notes" : "folders"
-      const response = await fetch(`/${endpoint}/${encodePath(this.contextItem.path)}`, {
+      const expanded = this.expandedFolders
+      const response = await fetch(`/${endpoint}/${encodePath(this.contextItem.path)}?expanded=${encodeURIComponent(expanded)}`, {
         method: "DELETE",
-        headers: {
-          "X-CSRF-Token": this.csrfToken
-        }
+        headers: this.turboStreamHeaders
       })
 
       if (!response.ok) {
         const data = await response.json()
         throw new Error(data.error || window.t("errors.failed_to_delete"))
       }
+
+      await this.processTurboStreamResponse(response)
 
       this.dispatch("file-deleted", {
         detail: {

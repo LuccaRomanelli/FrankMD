@@ -19,30 +19,43 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     assert_select "div[data-controller~='app']"
   end
 
-  test "index includes tree data" do
+  test "index includes tree data in rendered HTML" do
     create_test_note("test.md")
 
     get root_url
     assert_response :success
-    assert_match "test", response.body
+    # Tree is now server-rendered as HTML, not JSON in data attribute
+    assert_includes response.body, 'data-path="test.md"'
+    assert_includes response.body, 'data-type="file"'
   end
 
   # === tree ===
 
-  test "tree returns JSON file tree" do
+  test "tree returns HTML file tree" do
     create_test_note("note1.md")
     create_test_folder("folder1")
     create_test_note("folder1/note2.md")
 
-    get notes_tree_url, as: :json
+    get notes_tree_url
     assert_response :success
 
-    tree = JSON.parse(response.body)
-    assert_equal 2, tree.length
+    assert_includes response.body, 'data-path="note1.md"'
+    assert_includes response.body, 'data-path="folder1"'
+    assert_includes response.body, 'data-type="folder"'
+    assert_includes response.body, 'data-type="file"'
+  end
 
-    folder = tree.find { |item| item["type"] == "folder" }
-    assert_equal "folder1", folder["name"]
-    assert_equal 1, folder["children"].length
+  test "tree accepts expanded and selected params" do
+    create_test_folder("folder1")
+    create_test_note("folder1/note1.md")
+
+    get notes_tree_url, params: { expanded: "folder1", selected: "folder1/note1.md" }
+    assert_response :success
+
+    # Expanded folder should not have hidden children
+    assert_includes response.body, 'class="tree-chevron expanded"'
+    # Selected file should have selected class
+    assert_includes response.body, 'class="tree-item selected"'
   end
 
   # === show ===
@@ -327,5 +340,70 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
 
     assert_select "div[data-controller~='app']"
     assert_match "From Param", response.body
+  end
+
+  test "index renders editor config partial" do
+    get root_url
+    assert_response :success
+    assert_select "div#editor-config[data-controller='editor-config']"
+  end
+
+  # === turbo stream responses ===
+
+  test "create responds with turbo stream when requested" do
+    post create_note_url(path: "turbo_note.md"),
+      params: { content: "# Turbo", expanded: "folder1" },
+      headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :created
+
+    assert_includes response.content_type, "turbo-stream"
+    assert_includes response.body, "turbo-stream"
+    assert_includes response.body, 'action="update"'
+    assert_includes response.body, 'target="file-tree-content"'
+    # Tree should contain the newly created file
+    assert_includes response.body, 'data-path="turbo_note.md"'
+  end
+
+  test "create turbo stream includes expanded folder state" do
+    create_test_folder("myfolder")
+    create_test_note("myfolder/existing.md")
+
+    post create_note_url(path: "new_note.md"),
+      params: { content: "", expanded: "myfolder" },
+      headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :created
+
+    # Expanded folder should show expanded chevron
+    assert_includes response.body, 'class="tree-chevron expanded"'
+  end
+
+  test "destroy responds with turbo stream when requested" do
+    create_test_note("to_delete.md")
+
+    delete destroy_note_url(path: "to_delete.md"),
+      headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :success
+
+    assert_includes response.content_type, "turbo-stream"
+    assert_includes response.body, 'action="update"'
+    assert_includes response.body, 'target="file-tree-content"'
+    # Deleted file should not appear in tree
+    refute_includes response.body, 'data-path="to_delete.md"'
+  end
+
+  test "rename responds with turbo stream when requested" do
+    create_test_note("old_name.md", "Content")
+
+    post rename_note_url(path: "old_name.md"),
+      params: { new_path: "new_name.md", expanded: "" },
+      headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :success
+
+    assert_includes response.content_type, "turbo-stream"
+    assert_includes response.body, 'action="update"'
+    assert_includes response.body, 'target="file-tree-content"'
+    # Tree should contain the renamed file
+    assert_includes response.body, 'data-path="new_name.md"'
+    refute_includes response.body, 'data-path="old_name.md"'
   end
 end
