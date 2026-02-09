@@ -2,10 +2,6 @@
 import { application } from "controllers/application"
 import { lazyLoadControllersFrom } from "@hotwired/stimulus-loading"
 
-// Lazy load controllers - they're loaded on-demand when their DOM elements appear
-// This improves initial page load by deferring dialog controllers until needed
-lazyLoadControllersFrom("controllers", application)
-
 // Manually register locale controller (needs to load early for translations)
 import LocaleController from "controllers/locale_controller"
 application.register("locale", LocaleController)
@@ -25,3 +21,6 @@ application.register("web-images", WebImagesController)
 application.register("google-images", GoogleImagesController)
 application.register("pinterest-images", PinterestImagesController)
 application.register("ai-images", AiImagesController)
+
+// Lazy load remaining controllers on-demand when their DOM elements appear
+lazyLoadControllersFrom("controllers", application)
