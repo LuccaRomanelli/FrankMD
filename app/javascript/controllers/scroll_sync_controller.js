@@ -16,8 +16,8 @@ export default class extends Controller {
 
   // === Controller Getters (via Stimulus Outlets) ===
 
-  getCodemirrorController() { return this.hasCodemirrorOutlet ? this.codemirrorOutlet : null }
-  getPreviewController() { return this.hasPreviewOutlet ? this.previewOutlet : null }
+  getCodemirrorController() { return this.codemirrorOutlets[0] ?? null }
+  getPreviewController() { return this.previewOutlets[0] ?? null }
 
   // === Event Handlers ===
 

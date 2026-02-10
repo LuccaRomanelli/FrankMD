@@ -19,6 +19,19 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     assert_select "div[data-controller~='app']"
   end
 
+  test "index has empty initial-path-value and empty initial-note-value" do
+    get root_url
+    assert_response :success
+
+    assert_select "div[data-controller~='app']" do |elements|
+      el = elements.first
+      # Root URL should have empty path (no file selected)
+      assert_equal "", el["data-app-initial-path-value"]
+      # Initial note should be empty JSON object
+      assert_equal "{}", el["data-app-initial-note-value"]
+    end
+  end
+
   test "index includes tree data in rendered HTML" do
     create_test_note("test.md")
 
@@ -305,6 +318,38 @@ class NotesControllerTest < ActionDispatch::IntegrationTest
     # Should include initial path data attribute
     assert_match "bookmarked.md", response.body
     assert_match "Bookmarked Content", response.body
+
+    # Verify the initial path is a plain string (no JSON quotes)
+    assert_select "div[data-controller~='app'][data-app-initial-path-value]" do |elements|
+      path_value = elements.first["data-app-initial-path-value"]
+      assert_equal "bookmarked.md", path_value
+      refute_includes path_value, '"', "initial-path-value should not contain JSON quotes"
+    end
+
+    # Verify the initial note JSON is properly embedded in the data attribute
+    assert_select "div[data-controller~='app'][data-app-initial-note-value]" do |elements|
+      json_str = elements.first["data-app-initial-note-value"]
+      note_data = JSON.parse(json_str)
+      assert_equal "bookmarked.md", note_data["path"]
+      assert_equal "# Bookmarked Content", note_data["content"]
+      assert_equal true, note_data["exists"]
+    end
+  end
+
+  test "show with HTML request embeds content with special characters correctly" do
+    content = "# Title\n\nHe said \"hello\" & she said <goodbye>\n\nBackslash: \\"
+    create_test_note("special.md", content)
+
+    get note_url(path: "special.md")
+    assert_response :success
+
+    # Verify the data attribute can be parsed back to valid JSON with correct content
+    assert_select "div[data-controller~='app'][data-app-initial-note-value]" do |elements|
+      json_str = elements.first["data-app-initial-note-value"]
+      note_data = JSON.parse(json_str)
+      assert_equal content, note_data["content"]
+      assert_equal true, note_data["exists"]
+    end
   end
 
   test "show with HTML request for nested path renders SPA" do

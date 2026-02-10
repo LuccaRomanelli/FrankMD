@@ -33,9 +33,9 @@ export default class extends Controller {
 
   // === Controller Getters (via Stimulus Outlets) ===
 
-  getCodemirrorController() { return this.hasCodemirrorOutlet ? this.codemirrorOutlet : null }
-  getOfflineBackupController() { return this.hasOfflineBackupOutlet ? this.offlineBackupOutlet : null }
-  getRecoveryDiffController() { return this.hasRecoveryDiffOutlet ? this.recoveryDiffOutlet : null }
+  getCodemirrorController() { return this.codemirrorOutlets[0] ?? null }
+  getOfflineBackupController() { return this.offlineBackupOutlets[0] ?? null }
+  getRecoveryDiffController() { return this.recoveryDiffOutlets[0] ?? null }
 
   // === Public API (called by app controller) ===
 

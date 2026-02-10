@@ -80,17 +80,52 @@ export default class extends Controller {
       extensions: allExtensions
     })
 
-    // Handle initial file from URL (bookmarkable URLs)
-    this.handleInitialFile()
-
     // Setup browser history handling for back/forward buttons
     this.setupHistoryHandling()
 
-    // Hide loading screen now that app is ready
-    const loadingScreen = document.getElementById('app-loading')
+    // Pre-set codemirror's content attribute so it creates the editor with the right content
+    // (before the codemirror controller connects and reads its contentValue)
+    this._preloadInitialContent()
+
+    // Defer full initialization until codemirror outlet connects.
+    // Fallback timeout ensures it runs even if outlet callback doesn't fire.
+    this._initialFileHandled = false
+    this._initialFileTimeout = setTimeout(() => this._completeInitialLoad(), 50)
+  }
+
+  // Called by Stimulus when the codemirror outlet controller connects
+  codemirrorOutletConnected() {
+    this._completeInitialLoad()
+  }
+
+  _preloadInitialContent() {
+    if (!this.hasInitialNoteValue) return
+
+    const initialNote = this.initialNoteValue
+    if (!initialNote || !initialNote.exists || initialNote.content === null) return
+
+    const cmElement = this.element.querySelector('[data-controller~="codemirror"]')
+    if (cmElement) {
+      cmElement.setAttribute("data-codemirror-content-value", initialNote.content)
+    }
+  }
+
+  _completeInitialLoad() {
+    if (this._initialFileHandled) return
+    this._initialFileHandled = true
+    if (this._initialFileTimeout) {
+      clearTimeout(this._initialFileTimeout)
+      this._initialFileTimeout = null
+    }
+    this.handleInitialFile()
+    this._removeSplashScreen()
+  }
+
+  _removeSplashScreen() {
+    const loadingScreen = document.getElementById("app-loading")
     if (loadingScreen) {
-      loadingScreen.style.opacity = '0'
-      loadingScreen.style.transition = 'opacity 0.2s ease-out'
+      loadingScreen.style.opacity = "0"
+      loadingScreen.style.transition = "opacity 0.2s ease-out"
       setTimeout(() => loadingScreen.remove(), 200)
     }
   }
@@ -99,6 +134,7 @@ export default class extends Controller {
     // Clear all timeouts
     if (this.configSaveTimeout) clearTimeout(this.configSaveTimeout)
     if (this._tableCheckTimeout) clearTimeout(this._tableCheckTimeout)
+    if (this._initialFileTimeout) clearTimeout(this._initialFileTimeout)
 
     // Remove window/document event listeners
     if (this.boundPopstateHandler) {
@@ -125,20 +161,22 @@ export default class extends Controller {
 
   // === Controller Getters (via Stimulus Outlets) ===
 
-  getPreviewController() { return this.hasPreviewOutlet ? this.previewOutlet : null }
-  getTypewriterController() { return this.hasTypewriterOutlet ? this.typewriterOutlet : null }
-  getCodemirrorController() { return this.hasCodemirrorOutlet ? this.codemirrorOutlet : null }
-  getPathDisplayController() { return this.hasPathDisplayOutlet ? this.pathDisplayOutlet : null }
-  getTextFormatController() { return this.hasTextFormatOutlet ? this.textFormatOutlet : null }
-  getHelpController() { return this.hasHelpOutlet ? this.helpOutlet : null }
-  getStatsPanelController() { return this.hasStatsPanelOutlet ? this.statsPanelOutlet : null }
-  getFileOperationsController() { return this.hasFileOperationsOutlet ? this.fileOperationsOutlet : null }
-  getEmojiPickerController() { return this.hasEmojiPickerOutlet ? this.emojiPickerOutlet : null }
-  getOfflineBackupController() { return this.hasOfflineBackupOutlet ? this.offlineBackupOutlet : null }
-  getRecoveryDiffController() { return this.hasRecoveryDiffOutlet ? this.recoveryDiffOutlet : null }
-  getAutosaveController() { return this.hasAutosaveOutlet ? this.autosaveOutlet : null }
-  getScrollSyncController() { return this.hasScrollSyncOutlet ? this.scrollSyncOutlet : null }
-  getEditorConfigController() { return this.hasEditorConfigOutlet ? this.editorConfigOutlet : null }
+  // Outlet getters use the plural form (*Outlets) which returns only connected controllers
+  // as an array (never throws). Returns null when the outlet controller isn't connected yet.
+  getPreviewController() { return this.previewOutlets[0] ?? null }
+  getTypewriterController() { return this.typewriterOutlets[0] ?? null }
+  getCodemirrorController() { return this.codemirrorOutlets[0] ?? null }
+  getPathDisplayController() { return this.pathDisplayOutlets[0] ?? null }
+  getTextFormatController() { return this.textFormatOutlets[0] ?? null }
+  getHelpController() { return this.helpOutlets[0] ?? null }
+  getStatsPanelController() { return this.statsPanelOutlets[0] ?? null }
+  getFileOperationsController() { return this.fileOperationsOutlets[0] ?? null }
+  getEmojiPickerController() { return this.emojiPickerOutlets[0] ?? null }
+  getOfflineBackupController() { return this.offlineBackupOutlets[0] ?? null }
+  getRecoveryDiffController() { return this.recoveryDiffOutlets[0] ?? null }
+  getAutosaveController() { return this.autosaveOutlets[0] ?? null }
+  getScrollSyncController() { return this.scrollSyncOutlets[0] ?? null }
+  getEditorConfigController() { return this.editorConfigOutlets[0] ?? null }
 
   // === URL Management for Bookmarkable URLs ===
 

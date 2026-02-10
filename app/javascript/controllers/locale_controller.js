@@ -85,33 +85,33 @@ export default class extends Controller {
       return
     }
     this.currentLocaleId = localeId
-    this.saveLocaleConfig(localeId)
+    this.updateDisplay()
+    this.renderMenu()
     this.menuTarget.classList.add("hidden")
+    this.saveLocaleConfig(localeId)
   }
 
-  // Save locale to server config and reload page
-  saveLocaleConfig(localeId) {
+  // Save locale to server config and reload page to apply translations
+  async saveLocaleConfig(localeId) {
     if (this.configSaveTimeout) {
       clearTimeout(this.configSaveTimeout)
+      this.configSaveTimeout = null
     }
 
-    this.configSaveTimeout = setTimeout(async () => {
-      try {
-        const response = await patch("/config", {
-          body: { locale: localeId },
-          responseKind: "json"
-        })
+    try {
+      await patch("/config", {
+        body: { locale: localeId },
+        responseKind: "json"
+      })
+    } catch (error) {
+      console.warn("Failed to save locale config:", error)
+    }
+    // Always reload to apply new locale translations from server
+    this.reloadPage()
+  }
 
-        if (response.ok) {
-          // Reload page to apply new locale
-          window.location.reload()
-        } else {
-          console.warn("Failed to save locale config:", await response.text)
-        }
-      } catch (error) {
-        console.warn("Failed to save locale config:", error)
-      }
-    }, 100)
+  reloadPage() {
+    window.location.reload()
   }
 
   updateDisplay() {

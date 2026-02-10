@@ -145,16 +145,30 @@ describe("LocaleController", () => {
 
   describe("selectLocale()", () => {
     it("updates current locale", () => {
+      vi.spyOn(controller, "saveLocaleConfig").mockResolvedValue(undefined)
       const event = { currentTarget: { dataset: { locale: "ja" } } }
       controller.selectLocale(event)
       expect(controller.currentLocaleId).toBe("ja")
     })
 
     it("hides menu after selection", () => {
+      vi.spyOn(controller, "saveLocaleConfig").mockResolvedValue(undefined)
       controller.menuTarget.classList.remove("hidden")
       const event = { currentTarget: { dataset: { locale: "es" } } }
       controller.selectLocale(event)
       expect(controller.menuTarget.classList.contains("hidden")).toBe(true)
+    })
+
+    it("updates display immediately after selection", () => {
+      vi.spyOn(controller, "saveLocaleConfig").mockResolvedValue(undefined)
+      const updateSpy = vi.spyOn(controller, "updateDisplay")
+      const renderSpy = vi.spyOn(controller, "renderMenu")
+      const event = { currentTarget: { dataset: { locale: "ja" } } }
+
+      controller.selectLocale(event)
+
+      expect(updateSpy).toHaveBeenCalled()
+      expect(renderSpy).toHaveBeenCalled()
     })
 
     it("does nothing if same locale is selected", () => {
@@ -235,30 +249,32 @@ describe("LocaleController", () => {
   })
 
   describe("saveLocaleConfig()", () => {
-    it("calls fetch with correct parameters", async () => {
-      vi.useFakeTimers()
+    it("calls fetch with correct parameters and reloads", async () => {
+      fetch.mockClear()
+      fetch.mockResolvedValue({ ok: true })
+      const reloadSpy = vi.spyOn(controller, "reloadPage").mockImplementation(() => {})
 
-      try {
-        // Reset fetch mock to track new calls
-        fetch.mockClear()
-        fetch.mockResolvedValue({ ok: true })
+      await controller.saveLocaleConfig("ja")
 
-        controller.saveLocaleConfig("ja")
+      expect(fetch).toHaveBeenCalledWith("/config", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ locale: "ja" })
+      })
+      expect(reloadSpy).toHaveBeenCalled()
+    })
 
-        vi.advanceTimersByTime(100)
-        await vi.runAllTimersAsync()
+    it("reloads even when save fails", async () => {
+      fetch.mockClear()
+      fetch.mockRejectedValue(new Error("Network error"))
+      const reloadSpy = vi.spyOn(controller, "reloadPage").mockImplementation(() => {})
 
-        expect(fetch).toHaveBeenCalledWith("/config", {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          body: JSON.stringify({ locale: "ja" })
-        })
-      } finally {
-        vi.useRealTimers()
-      }
+      await controller.saveLocaleConfig("ja")
+
+      expect(reloadSpy).toHaveBeenCalled()
     })
   })
 

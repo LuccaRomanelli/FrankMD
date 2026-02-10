@@ -111,6 +111,19 @@ class ConfigControllerTest < ActionDispatch::IntegrationTest
     assert_equal "hack", data["settings"]["editor_font"]
   end
 
+  test "update saves locale setting and returns updated settings" do
+    patch config_url, params: { locale: "pt-BR" }, as: :json
+    assert_response :success
+
+    data = JSON.parse(response.body)
+    assert_equal "pt-BR", data["settings"]["locale"]
+
+    # Verify persistence - subsequent GET should return the saved locale
+    get config_url, as: :json
+    data = JSON.parse(response.body)
+    assert_equal "pt-BR", data["settings"]["locale"]
+  end
+
   test "update returns error for empty params" do
     patch config_url, params: {}, as: :json
     assert_response :unprocessable_entity

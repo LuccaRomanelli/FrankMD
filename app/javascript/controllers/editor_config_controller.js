@@ -33,22 +33,34 @@ export default class extends Controller {
   ]
 
   connect() {
-    // Apply all settings on connect
-    this.applyFont()
+    this._codemirrorReady = false
+    this._previewReady = false
+    // Apply non-outlet settings immediately
     this.applyEditorWidth()
-    this.applyPreviewZoom()
-    this.applyLineNumbers()
     this.applyTheme()
+    // Outlet-dependent settings are applied via *OutletConnected() callbacks
+  }
+
+  codemirrorOutletConnected() {
+    this._codemirrorReady = true
+    this.applyFont()
+    this.applyLineNumbers()
+  }
+
+  previewOutletConnected() {
+    this._previewReady = true
+    this.applyPreviewZoom()
   }
 
   // === Value Change Callbacks ===
+  // Guarded by outlet readiness flags to avoid Stimulus warnings during initialization
 
   fontValueChanged() {
-    if (this.element.isConnected) this.applyFont()
+    if (this._codemirrorReady) this.applyFont()
   }
 
   fontSizeValueChanged() {
-    if (this.element.isConnected) this.applyFont()
+    if (this._codemirrorReady) this.applyFont()
   }
 
   editorWidthValueChanged() {
@@ -56,11 +68,11 @@ export default class extends Controller {
   }
 
   previewZoomValueChanged() {
-    if (this.element.isConnected) this.applyPreviewZoom()
+    if (this._previewReady) this.applyPreviewZoom()
   }
 
   lineNumbersValueChanged() {
-    if (this.element.isConnected) this.applyLineNumbers()
+    if (this._codemirrorReady) this.applyLineNumbers()
   }
 
   themeValueChanged() {
@@ -121,8 +133,8 @@ export default class extends Controller {
 
   // === Controller Getters (via Stimulus Outlets) ===
 
-  getCodemirrorController() { return this.hasCodemirrorOutlet ? this.codemirrorOutlet : null }
-  getPreviewController() { return this.hasPreviewOutlet ? this.previewOutlet : null }
+  getCodemirrorController() { return this.codemirrorOutlets[0] ?? null }
+  getPreviewController() { return this.previewOutlets[0] ?? null }
 
   // === Public Getters for App Controller ===
 
