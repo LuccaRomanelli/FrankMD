@@ -1259,9 +1259,9 @@ export default class extends Controller {
       )
     }
 
-    // For folder renames, check if current file is inside the renamed folder
+    // For folder renames, update current file path if it's inside the renamed folder
     if (type === "folder" && this.currentFile?.startsWith(oldPath + "/")) {
-      this.currentFile = this.currentFile.replace(oldPath, newPath)
+      this.currentFile = `${newPath}${this.currentFile.slice(oldPath.length)}`
       this.updatePathDisplay(this.currentFile.replace(/\.md$/, ""))
       this.updateUrl(this.currentFile)
     }
