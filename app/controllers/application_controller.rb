@@ -11,8 +11,6 @@ class ApplicationController < ActionController::Base
 
   def set_locale
     locale = params[:locale] ||
-             session[:locale] ||
-             ENV["FRANKMD_LOCALE"] ||
              current_config&.get("locale") ||
              I18n.default_locale
 

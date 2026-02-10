@@ -209,20 +209,48 @@ class TranslationsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "en", data["locale"]
   end
 
-  # === ENV Variable Priority ===
+  # === Priority: .fed file > ENV > default ===
 
-  test "ENV variable takes precedence over config file" do
-    # Set a different locale in config
+  test "config file takes precedence over ENV variable" do
+    # Set locale in config file
     @test_notes_dir.join(".fed").write("locale = ja\n")
 
-    # Set ENV to es
+    # Set ENV to a different locale
     ENV["FRANKMD_LOCALE"] = "es"
 
     get translations_url, as: :json
     data = JSON.parse(response.body)
 
-    # Should use ENV value (es), not config file value (ja)
+    # Should use config file value (ja), not ENV value (es)
+    # User's explicit choice in .fed overrides deployment default in ENV
+    assert_equal "ja", data["locale"]
+  end
+
+  test "ENV variable is used as fallback when config file has no locale" do
+    # No locale in .fed file
+    @test_notes_dir.join(".fed").write("theme = gruvbox\n")
+
+    ENV["FRANKMD_LOCALE"] = "es"
+
+    get translations_url, as: :json
+    data = JSON.parse(response.body)
+
+    # Should use ENV value since .fed has no locale
     assert_equal "es", data["locale"]
+  end
+
+  test "empty ENV FRANKMD_LOCALE does not override config file locale" do
+    # This was the production bug: docker-compose sets FRANKMD_LOCALE=""
+    # Empty string is truthy in Ruby || chains but not a valid locale
+    @test_notes_dir.join(".fed").write("locale = pt-BR\n")
+
+    ENV["FRANKMD_LOCALE"] = ""
+
+    get translations_url, as: :json
+    data = JSON.parse(response.body)
+
+    # Should use config file value, not get stuck on empty ENV string
+    assert_equal "pt-BR", data["locale"]
   end
 
   # === Locale Picker Updates Config ===
