@@ -11,10 +11,12 @@ export default class extends Controller {
 
   connect() {
     this.draggedItem = null
+    this.activeDropTargetId = null
   }
 
   disconnect() {
     this.draggedItem = null
+    this.activeDropTargetId = null
   }
 
   // Item drag start
@@ -27,6 +29,7 @@ export default class extends Controller {
     event.dataTransfer.effectAllowed = "move"
     event.dataTransfer.setData("text/plain", target.dataset.path)
     target.classList.add("dragging")
+    this.clearActiveDropTarget()
 
     // Add a slight delay to show the dragging state
     setTimeout(() => {
@@ -38,12 +41,9 @@ export default class extends Controller {
   onDragEnd(event) {
     event.currentTarget.classList.remove("dragging", "drag-ghost")
     this.draggedItem = null
+    this.clearActiveDropTarget()
 
-    // Remove all drop highlights
     if (this.hasTreeTarget) {
-      this.treeTarget.querySelectorAll(".drop-highlight").forEach(el => {
-        el.classList.remove("drop-highlight")
-      })
       this.treeTarget.classList.remove("drop-highlight-root")
     }
   }
@@ -54,34 +54,65 @@ export default class extends Controller {
     event.dataTransfer.dropEffect = "move"
   }
 
-  // Highlight valid drop target
-  onDragEnter(event) {
-    event.preventDefault()
-    const target = event.currentTarget
-
-    if (!this.draggedItem) return
-
-    // Don't allow dropping on itself or its children
-    if (this.draggedItem.path === target.dataset.path) return
-    if (target.dataset.path.startsWith(this.draggedItem.path + "/")) return
-
-    // Only folders are valid drop targets
-    if (target.dataset.type === "folder") {
-      target.classList.add("drop-highlight")
+  // Keep a single active row highlight for the current pointer position.
+  updateActiveDropTargetFromEvent(event) {
+    if (!this.draggedItem || !this.hasTreeTarget) {
+      this.clearActiveDropTarget()
+      return
     }
+
+    const eventTarget = event.target
+    const targetElement = eventTarget instanceof Element
+      ? eventTarget
+      : (eventTarget instanceof Node ? eventTarget.parentElement : null)
+
+    if (!(targetElement instanceof Element)) {
+      this.clearActiveDropTarget()
+      return
+    }
+
+    const candidate = targetElement.closest("[data-drop-id]")
+    if (!candidate || !this.treeTarget.contains(candidate) || !this.isValidDropTarget(candidate)) {
+      this.clearActiveDropTarget()
+      return
+    }
+
+    this.setActiveDropTarget(candidate.dataset.dropId)
   }
 
-  // Remove highlight when leaving
-  onDragLeave(event) {
-    const target = event.currentTarget
-    // Check if we're actually leaving the element (not just entering a child)
-    const rect = target.getBoundingClientRect()
-    const x = event.clientX
-    const y = event.clientY
+  setActiveDropTarget(dropTargetId) {
+    if (this.activeDropTargetId === dropTargetId) return
+    this.activeDropTargetId = dropTargetId
+    this.renderActiveDropTarget()
+  }
 
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-      target.classList.remove("drop-highlight")
+  clearActiveDropTarget() {
+    if (this.activeDropTargetId === null) {
+      this.renderActiveDropTarget()
+      return
     }
+
+    this.setActiveDropTarget(null)
+  }
+
+  renderActiveDropTarget() {
+    if (!this.hasTreeTarget) return
+
+    this.treeTarget.querySelectorAll("[data-drop-id]").forEach(row => {
+      row.classList.toggle("drop-highlight", row.dataset.dropId === this.activeDropTargetId)
+    })
+  }
+
+  isValidDropTarget(target) {
+    if (!this.draggedItem) return false
+    if (target.dataset.type !== "folder") return false
+    if (!target.dataset.path) return false
+
+    // Don't allow dropping on itself or descendants.
+    if (this.draggedItem.path === target.dataset.path) return false
+    if (target.dataset.path.startsWith(this.draggedItem.path + "/")) return false
+
+    return true
   }
 
   // Handle drop on folder
@@ -90,10 +121,10 @@ export default class extends Controller {
     event.stopPropagation()
 
     const target = event.currentTarget
-    target.classList.remove("drop-highlight")
+    this.clearActiveDropTarget()
 
     if (!this.draggedItem) return
-    if (target.dataset.type !== "folder") return
+    if (!this.isValidDropTarget(target)) return
 
     const sourcePath = this.draggedItem.path
     const targetFolder = target.dataset.path
@@ -116,7 +147,11 @@ export default class extends Controller {
   // Root tree drag over
   onDragOverRoot(event) {
     event.preventDefault()
-    event.dataTransfer.dropEffect = "move"
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move"
+    }
+
+    this.updateActiveDropTargetFromEvent(event)
   }
 
   // Root tree drag enter
@@ -135,14 +170,19 @@ export default class extends Controller {
   onDragLeaveRoot(event) {
     if (!this.hasTreeTarget) return
 
-    // Only remove highlight if we're leaving the file tree entirely
-    const rect = this.treeTarget.getBoundingClientRect()
-    const x = event.clientX
-    const y = event.clientY
+    const relatedTarget = event.relatedTarget
+    if (relatedTarget instanceof Node && this.treeTarget.contains(relatedTarget)) return
 
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-      this.treeTarget.classList.remove("drop-highlight-root")
+    if (!relatedTarget && typeof document.elementFromPoint === "function") {
+      const hasPoint = Number.isFinite(event.clientX) && Number.isFinite(event.clientY)
+      if (hasPoint) {
+        const elementUnderPointer = document.elementFromPoint(event.clientX, event.clientY)
+        if (elementUnderPointer instanceof Node && this.treeTarget.contains(elementUnderPointer)) return
+      }
     }
+
+    this.treeTarget.classList.remove("drop-highlight-root")
+    this.clearActiveDropTarget()
   }
 
   // Handle drop to root
@@ -153,6 +193,7 @@ export default class extends Controller {
     if (this.hasTreeTarget) {
       this.treeTarget.classList.remove("drop-highlight-root")
     }
+    this.clearActiveDropTarget()
 
     if (!this.draggedItem) return
 
