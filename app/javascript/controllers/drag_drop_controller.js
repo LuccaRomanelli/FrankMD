@@ -108,9 +108,15 @@ export default class extends Controller {
     if (target.dataset.type !== "folder") return false
     if (!target.dataset.path) return false
 
+    const draggedPath = this.draggedItem.path
+
     // Don't allow dropping on itself or descendants.
-    if (this.draggedItem.path === target.dataset.path) return false
-    if (target.dataset.path.startsWith(this.draggedItem.path + "/")) return false
+    if (draggedPath === target.dataset.path) return false
+    if (target.dataset.path.startsWith(draggedPath + "/")) return false
+
+    // Don't highlight the current parent (moving to same location is a no-op).
+    const currentParent = draggedPath.split("/").slice(0, -1).join("/")
+    if (currentParent === target.dataset.path) return false
 
     return true
   }
@@ -129,17 +135,8 @@ export default class extends Controller {
     const sourcePath = this.draggedItem.path
     const targetFolder = target.dataset.path
 
-    // Don't drop on itself or its parent
-    if (sourcePath === targetFolder) return
-    if (sourcePath.startsWith(targetFolder + "/")) return
-
-    // Get the item name
     const itemName = sourcePath.split("/").pop()
     const newPath = `${targetFolder}/${itemName}`
-
-    // Don't move to same location
-    const currentParent = sourcePath.split("/").slice(0, -1).join("/")
-    if (currentParent === targetFolder) return
 
     await this.moveItem(sourcePath, newPath, this.draggedItem.type)
   }

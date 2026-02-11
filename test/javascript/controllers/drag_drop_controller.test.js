@@ -293,6 +293,20 @@ describe("DragDropController", () => {
       })
       expect(controller.activeDropTargetId).toBeNull()
     })
+
+    it("does not highlight current parent folder", () => {
+      controller.draggedItem = { path: "folder1/file1.md", type: "file" }
+      const folder1Label = element.querySelector('[data-path="folder1"] .tree-label')
+
+      controller.onDragOverRoot({
+        preventDefault: vi.fn(),
+        dataTransfer: { dropEffect: null },
+        target: folder1Label
+      })
+
+      expect(controller.activeDropTargetId).toBeNull()
+      expect(element.querySelector('[data-path="folder1"]').classList.contains("drop-highlight")).toBe(false)
+    })
   })
 
   describe("onDragLeaveRoot()", () => {
