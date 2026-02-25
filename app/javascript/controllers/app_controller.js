@@ -508,8 +508,10 @@ export default class extends Controller {
   onEditorSelectionChange(event) {
     this.updateLinePosition()
 
-    // Show/hide table hint when cursor moves into/out of a table
-    if (this.isMarkdownFile()) {
+    // Show/hide table hint when cursor moves into/out of a table.
+    // Skip if a doc change already scheduled a check in this event cycle
+    // (typing fires both docChanged and selectionSet in the same CM update).
+    if (this.isMarkdownFile() && !this._tableCheckTimeout) {
       this.checkTableAtCursor()
     }
   }
