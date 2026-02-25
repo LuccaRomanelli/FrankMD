@@ -403,6 +403,14 @@ export default class extends Controller {
     this.editorPlaceholderTarget.classList.add("hidden")
     this.editorTarget.classList.remove("hidden")
 
+    // Reset table hint immediately when loading new content
+    this.tableHintTarget.classList.add("hidden")
+    this.tableHintTarget.classList.remove("inline-block")
+    if (this._tableCheckTimeout) {
+      clearTimeout(this._tableCheckTimeout)
+      this._tableCheckTimeout = null
+    }
+
     // Delegate persistence tracking to autosave controller
     const autosave = this.getAutosaveController()
     if (autosave) {
@@ -499,6 +507,11 @@ export default class extends Controller {
   // Handle CodeMirror selection change events
   onEditorSelectionChange(event) {
     this.updateLinePosition()
+
+    // Show/hide table hint when cursor moves into/out of a table
+    if (this.isMarkdownFile()) {
+      this.checkTableAtCursor()
+    }
   }
 
   // Dispatch an input event to trigger all listeners after programmatic value changes
@@ -531,8 +544,10 @@ export default class extends Controller {
 
     if (tableInfo) {
       this.tableHintTarget.classList.remove("hidden")
+      this.tableHintTarget.classList.add("inline-block")
     } else {
       this.tableHintTarget.classList.add("hidden")
+      this.tableHintTarget.classList.remove("inline-block")
     }
   }
 

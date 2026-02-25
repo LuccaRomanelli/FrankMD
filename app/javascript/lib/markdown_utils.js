@@ -47,6 +47,14 @@ export function findTableAtPosition(text, pos) {
     return null
   }
 
+  // Validate that the table contains a separator row (e.g. |---|---|)
+  const separatorPattern = /^\|[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|?\s*$/
+  const tableLines = lines.slice(startLine, endLine + 1)
+  const hasSeparator = tableLines.some(l => separatorPattern.test(l.trim()))
+  if (!hasSeparator) {
+    return null
+  }
+
   // Calculate positions
   let startPos = 0
   for (let i = 0; i < startLine; i++) {

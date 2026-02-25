@@ -80,6 +80,49 @@ Some other text`
     expect(result).not.toBeNull()
     expect(result.lines).toHaveLength(3)
   })
+
+  it("returns null for consecutive pipe lines without separator row", () => {
+    const text = `| foo |
+| bar |`
+    const result = findTableAtPosition(text, 0)
+
+    expect(result).toBeNull()
+  })
+
+  it("returns null for pipe lines that are not a real table", () => {
+    const text = `Some text
+| this is not
+| a real table
+More text`
+
+    const pos = text.indexOf("| this")
+    const result = findTableAtPosition(text, pos)
+
+    expect(result).toBeNull()
+  })
+
+  it("detects table with colon-aligned separator row", () => {
+    const text = `| Left | Center | Right |
+| :--- | :---: | ---: |
+| a | b | c |`
+
+    const result = findTableAtPosition(text, 0)
+
+    expect(result).not.toBeNull()
+    expect(result.lines).toHaveLength(3)
+  })
+
+  it("detects table when cursor is on separator row", () => {
+    const text = `| H1 | H2 |
+| --- | --- |
+| V1 | V2 |`
+
+    const pos = text.indexOf("| --- |")
+    const result = findTableAtPosition(text, pos)
+
+    expect(result).not.toBeNull()
+    expect(result.lines).toHaveLength(3)
+  })
 })
 
 describe("findCodeBlockAtPosition", () => {
