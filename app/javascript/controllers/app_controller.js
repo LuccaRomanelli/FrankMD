@@ -404,8 +404,7 @@ export default class extends Controller {
     this.editorTarget.classList.remove("hidden")
 
     // Reset table hint immediately when loading new content
-    this.tableHintTarget.classList.add("hidden")
-    this.tableHintTarget.classList.remove("inline-block")
+    this._setTableHintVisible(false)
     if (this._tableCheckTimeout) {
       clearTimeout(this._tableCheckTimeout)
       this._tableCheckTimeout = null
@@ -544,13 +543,15 @@ export default class extends Controller {
     const cursorInfo = codemirrorController.getCursorPosition()
     const tableInfo = findTableAtPosition(text, cursorInfo.offset)
 
-    if (tableInfo) {
-      this.tableHintTarget.classList.remove("hidden")
-      this.tableHintTarget.classList.add("inline-block")
-    } else {
-      this.tableHintTarget.classList.add("hidden")
-      this.tableHintTarget.classList.remove("inline-block")
-    }
+    this._setTableHintVisible(!!tableInfo)
+  }
+
+  // Toggle table hint visibility. Consolidated here because Tailwind's
+  // .inline-block is declared after .hidden at equal specificity, so
+  // both classes must be swapped to actually change display.
+  _setTableHintVisible(visible) {
+    this.tableHintTarget.classList.toggle("hidden", !visible)
+    this.tableHintTarget.classList.toggle("inline-block", visible)
   }
 
   // === Autosave Event Handlers ===
