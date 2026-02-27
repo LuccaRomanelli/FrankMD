@@ -27,6 +27,18 @@ class ConfigController < ApplicationController
     }
   end
 
+  # GET /config/omarchy_theme
+  # Returns Omarchy theme colors for live sync
+  def omarchy_theme
+    data = OmarchyThemeService.theme_data
+
+    if data
+      render json: data
+    else
+      render json: { error: "Omarchy theme not available" }, status: :not_found
+    end
+  end
+
   # PATCH /config
   # Updates UI settings
   def update

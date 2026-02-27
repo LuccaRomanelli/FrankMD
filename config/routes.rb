@@ -40,6 +40,7 @@ Rails.application.routes.draw do
 
   # Config API
   get "config/editor", to: "config#editor"
+  get "config/omarchy_theme", to: "config#omarchy_theme"
   get "config", to: "config#show"
   patch "config", to: "config#update"
 
