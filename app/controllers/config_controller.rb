@@ -4,7 +4,7 @@ class ConfigController < ApplicationController
   # Disable automatic parameter wrapping (Rails wraps JSON params under controller name)
   wrap_parameters false
 
-  before_action :set_config
+  before_action :set_config, except: [ :omarchy_theme ]
 
   # GET /config/editor
   # Returns the editor config partial for Turbo replacement
@@ -25,6 +25,18 @@ class ConfigController < ApplicationController
         local_images: @config.feature_available?(:local_images)
       }
     }
+  end
+
+  # GET /config/omarchy_theme
+  # Returns Omarchy theme colors for live sync
+  def omarchy_theme
+    data = OmarchyThemeService.theme_data
+
+    if data
+      render json: data
+    else
+      render json: { error: "Omarchy theme not available" }, status: :not_found
+    end
   end
 
   # PATCH /config

@@ -1,11 +1,11 @@
 import { Controller } from "@hotwired/stimulus"
-import { patch } from "@rails/request.js"
+import { get, patch } from "@rails/request.js"
 
 export default class extends Controller {
   static targets = ["menu", "currentTheme"]
   static values = { initial: String }
 
-  // Available themes - Light and Dark first, then alphabetical
+  // Built-in themes - Light and Dark first, then alphabetical
   static themes = [
     { id: "light", name: "Light", icon: "sun" },
     { id: "dark", name: "Dark", icon: "moon" },
@@ -27,11 +27,25 @@ export default class extends Controller {
     { id: "tokyo-night", name: "Tokyo Night", icon: "palette" }
   ]
 
+  // Light themes for Tailwind dark: toggle
+  static lightThemes = ["light", "solarized-light", "catppuccin-latte", "rose-pine", "flexoki-light"]
+
   connect() {
     // Load initial theme from server config
     this.currentThemeId = this.hasInitialValue && this.initialValue ? this.initialValue : null
-    this.applyTheme()
-    this.renderMenu()
+    this.omarchyThemeName = null
+    this.omarchyPollingInterval = null
+    this.omarchyAvailable = false
+
+    // Build runtime themes list (copy of static)
+    this.runtimeThemes = [...this.constructor.themes]
+
+    // Check omarchy availability, then apply theme and render
+    this.checkOmarchyAvailability().then(() => {
+      this.applyTheme()
+      this.renderMenu()
+    })
+
     this.setupClickOutside()
     this.setupConfigListener()
   }
@@ -46,6 +60,7 @@ export default class extends Controller {
     if (this.configSaveTimeout) {
       clearTimeout(this.configSaveTimeout)
     }
+    this.stopOmarchyPolling()
   }
 
   // Listen for config changes (when .fed file is edited)
@@ -103,20 +118,142 @@ export default class extends Controller {
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
     const themeId = this.currentThemeId || (prefersDark ? "dark" : "light")
 
+    if (themeId === "omarchy") {
+      this.applyOmarchyTheme()
+      return
+    }
+
+    // Switching away from omarchy - clean up
+    this.stopOmarchyPolling()
+    this.removeOmarchyStyles()
+
     // Set data-theme attribute on html element
     document.documentElement.setAttribute("data-theme", themeId)
 
     // Also set dark class for Tailwind dark: variants
-    const isDarkTheme = !["light", "solarized-light", "catppuccin-latte", "rose-pine", "flexoki-light"].includes(themeId)
+    const isDarkTheme = !this.constructor.lightThemes.includes(themeId)
     document.documentElement.classList.toggle("dark", isDarkTheme)
 
-    // Update current theme display
-    if (this.hasCurrentThemeTarget) {
-      const theme = this.constructor.themes.find(t => t.id === themeId)
-      this.currentThemeTarget.textContent = theme ? theme.name : "Light"
+    this.updateCurrentThemeDisplay(themeId)
+    this.updateMenuCheckmarks(themeId)
+  }
+
+  async applyOmarchyTheme() {
+    try {
+      const response = await get("/config/omarchy_theme", { responseKind: "json" })
+
+      if (!response.ok) {
+        // Omarchy no longer available - fall back to dark
+        this.currentThemeId = "dark"
+        this.saveThemeConfig("dark")
+        this.applyTheme()
+        this.renderMenu()
+        return
+      }
+
+      const data = await response.json
+      this.omarchyThemeName = data.theme_name
+      this.injectOmarchyStyles(data.variables)
+
+      // Set data-theme so CSS selectors work
+      document.documentElement.setAttribute("data-theme", "omarchy")
+
+      // Toggle dark class based on omarchy theme luminance
+      document.documentElement.classList.toggle("dark", data.is_dark)
+
+      this.updateCurrentThemeDisplay("omarchy")
+      this.updateMenuCheckmarks("omarchy")
+
+      // Start polling for theme changes
+      this.startOmarchyPolling()
+    } catch (error) {
+      console.warn("Failed to apply Omarchy theme:", error)
+      this.currentThemeId = "dark"
+      this.saveThemeConfig("dark")
+      this.applyTheme()
+      this.renderMenu()
+    }
+  }
+
+  injectOmarchyStyles(variables) {
+    let styleEl = document.getElementById("omarchy-theme-vars")
+    if (!styleEl) {
+      styleEl = document.createElement("style")
+      styleEl.id = "omarchy-theme-vars"
+      document.head.appendChild(styleEl)
     }
 
-    // Update menu checkmarks
+    const cssVars = Object.entries(variables)
+      .map(([key, value]) => `  ${key}: ${value};`)
+      .join("\n")
+
+    styleEl.textContent = `[data-theme="omarchy"] {\n${cssVars}\n}`
+  }
+
+  removeOmarchyStyles() {
+    const styleEl = document.getElementById("omarchy-theme-vars")
+    if (styleEl) {
+      styleEl.remove()
+    }
+  }
+
+  startOmarchyPolling() {
+    if (this.omarchyPollingInterval) return
+
+    this.omarchyPollingInterval = setInterval(async () => {
+      try {
+        const response = await get("/config/omarchy_theme", { responseKind: "json" })
+
+        if (!response.ok) {
+          // Omarchy was removed - fall back
+          this.stopOmarchyPolling()
+          this.currentThemeId = "dark"
+          this.saveThemeConfig("dark")
+          this.applyTheme()
+          this.renderMenu()
+          return
+        }
+
+        const data = await response.json
+        if (data.theme_name !== this.omarchyThemeName) {
+          this.omarchyThemeName = data.theme_name
+          this.injectOmarchyStyles(data.variables)
+          document.documentElement.classList.toggle("dark", data.is_dark)
+        }
+      } catch (error) {
+        // Silently ignore polling errors
+      }
+    }, 3000)
+  }
+
+  stopOmarchyPolling() {
+    if (this.omarchyPollingInterval) {
+      clearInterval(this.omarchyPollingInterval)
+      this.omarchyPollingInterval = null
+    }
+    this.omarchyThemeName = null
+  }
+
+  async checkOmarchyAvailability() {
+    try {
+      const response = await get("/config/omarchy_theme", { responseKind: "json" })
+      if (response.ok) {
+        this.omarchyAvailable = true
+        this.runtimeThemes.push({ id: "omarchy", name: "Omarchy", icon: "sync" })
+      }
+    } catch (error) {
+      // Omarchy not available
+    }
+  }
+
+  updateCurrentThemeDisplay(themeId) {
+    if (this.hasCurrentThemeTarget) {
+      const theme = this.runtimeThemes.find(t => t.id === themeId)
+      this.currentThemeTarget.textContent = theme ? theme.name : "Light"
+    }
+  }
+
+  updateMenuCheckmarks(themeId) {
     if (this.hasMenuTarget) {
       this.menuTarget.querySelectorAll("[data-theme]").forEach(el => {
         const checkmark = el.querySelector(".checkmark")
@@ -133,7 +270,7 @@ export default class extends Controller {
     const currentTheme = this.currentThemeId ||
       (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
 
-    this.menuTarget.innerHTML = this.constructor.themes.map(theme => `
+    this.menuTarget.innerHTML = this.runtimeThemes.map(theme => `
       <button
         type="button"
         class="w-full px-3 py-2 text-left text-sm hover:bg-[var(--theme-bg-hover)] flex items-center justify-between gap-2"
@@ -161,6 +298,9 @@ export default class extends Controller {
       </svg>`,
       palette: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+      </svg>`,
+      sync: `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
       </svg>`
     }
     return icons[iconType] || icons.palette

@@ -23,10 +23,12 @@ describe("ThemeController", () => {
       dispatchEvent: vi.fn()
     }))
 
-    // Mock fetch
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({})
+    // Mock fetch - return 404 for omarchy_theme (not installed) by default
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (typeof url === "string" && url.includes("omarchy_theme")) {
+        return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
     })
 
     document.body.innerHTML = `
@@ -79,7 +81,7 @@ describe("ThemeController", () => {
 
     it("renders menu with themes", () => {
       const buttons = controller.menuTarget.querySelectorAll("button")
-      expect(buttons.length).toBe(ThemeController.themes.length)
+      expect(buttons.length).toBe(controller.runtimeThemes.length)
     })
 
     it("updates current theme display", () => {
@@ -193,14 +195,14 @@ describe("ThemeController", () => {
     it("creates buttons for all themes", () => {
       controller.renderMenu()
       const buttons = controller.menuTarget.querySelectorAll("button")
-      expect(buttons.length).toBe(ThemeController.themes.length)
+      expect(buttons.length).toBe(controller.runtimeThemes.length)
     })
 
     it("sets data-theme attribute on buttons", () => {
       controller.renderMenu()
       const buttons = controller.menuTarget.querySelectorAll("button")
       buttons.forEach((button, index) => {
-        expect(button.dataset.theme).toBe(ThemeController.themes[index].id)
+        expect(button.dataset.theme).toBe(controller.runtimeThemes[index].id)
       })
     })
 
@@ -265,6 +267,9 @@ describe("ThemeController", () => {
       vi.useFakeTimers()
 
       try {
+        // Clear any prior fetch calls (e.g. omarchy availability check)
+        fetch.mockClear()
+
         controller.saveThemeConfig("nord")
         controller.saveThemeConfig("gruvbox")
         controller.saveThemeConfig("tokyo-night")
@@ -364,7 +369,12 @@ describe("ThemeController with system dark preference", () => {
       dispatchEvent: vi.fn()
     }))
 
-    global.fetch = vi.fn().mockResolvedValue({ ok: true })
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (typeof url === "string" && url.includes("omarchy_theme")) {
+        return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
 
     document.body.innerHTML = `
       <div data-controller="theme">
@@ -392,5 +402,144 @@ describe("ThemeController with system dark preference", () => {
 
   it("falls back to light theme when no initial value and system prefers light", () => {
     expect(document.documentElement.getAttribute("data-theme")).toBe("light")
+  })
+})
+
+describe("ThemeController with Omarchy available", () => {
+  let application
+  let controller
+  let element
+
+  const omarchyThemeData = {
+    theme_name: "purplewave",
+    variables: {
+      "--theme-bg-primary": "#1a1a2e",
+      "--theme-text-primary": "#e0e0e0",
+      "--theme-accent": "#7ea7c9"
+    },
+    is_dark: true
+  }
+
+  beforeEach(() => {
+    setupJsdomGlobals()
+
+    window.matchMedia = vi.fn().mockImplementation(query => ({
+      matches: query === "(prefers-color-scheme: dark)",
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn()
+    }))
+
+    // Mock fetch - return omarchy theme data for omarchy_theme endpoint
+    global.fetch = vi.fn().mockImplementation((url) => {
+      if (typeof url === "string" && url.includes("omarchy_theme")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(omarchyThemeData)
+        })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+
+    document.body.innerHTML = `
+      <div data-controller="theme" data-theme-initial-value="dark">
+        <span data-theme-target="currentTheme"></span>
+        <div data-theme-target="menu" class="hidden"></div>
+      </div>
+    `
+
+    element = document.querySelector('[data-controller="theme"]')
+    application = Application.start()
+    application.register("theme", ThemeController)
+
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        controller = application.getControllerForElementAndIdentifier(element, "theme")
+        resolve()
+      }, 0)
+    })
+  })
+
+  afterEach(() => {
+    controller.stopOmarchyPolling()
+    application.stop()
+    vi.restoreAllMocks()
+  })
+
+  it("adds Omarchy to runtimeThemes when available", () => {
+    const omarchy = controller.runtimeThemes.find(t => t.id === "omarchy")
+    expect(omarchy).toBeDefined()
+    expect(omarchy.name).toBe("Omarchy")
+    expect(omarchy.icon).toBe("sync")
+  })
+
+  it("includes Omarchy in rendered menu", () => {
+    const buttons = controller.menuTarget.querySelectorAll("button")
+    expect(buttons.length).toBe(ThemeController.themes.length + 1)
+    const omarchyButton = controller.menuTarget.querySelector('[data-theme="omarchy"]')
+    expect(omarchyButton).not.toBeNull()
+  })
+
+  it("returns sync icon for sync type", () => {
+    const icon = controller.getIcon("sync")
+    expect(icon).toContain("svg")
+    expect(icon).toContain("4 4v5h")
+  })
+
+  it("applies omarchy theme with injected CSS variables", async () => {
+    controller.currentThemeId = "omarchy"
+    await controller.applyOmarchyTheme()
+
+    expect(document.documentElement.getAttribute("data-theme")).toBe("omarchy")
+    const styleEl = document.getElementById("omarchy-theme-vars")
+    expect(styleEl).not.toBeNull()
+    expect(styleEl.textContent).toContain("--theme-bg-primary: #1a1a2e")
+  })
+
+  it("sets dark class based on omarchy theme luminance", async () => {
+    controller.currentThemeId = "omarchy"
+    await controller.applyOmarchyTheme()
+
+    expect(document.documentElement.classList.contains("dark")).toBe(true)
+  })
+
+  it("removes omarchy styles when switching to another theme", async () => {
+    controller.currentThemeId = "omarchy"
+    await controller.applyOmarchyTheme()
+    expect(document.getElementById("omarchy-theme-vars")).not.toBeNull()
+
+    controller.currentThemeId = "dark"
+    controller.applyTheme()
+    expect(document.getElementById("omarchy-theme-vars")).toBeNull()
+  })
+
+  it("stops polling on disconnect", async () => {
+    controller.currentThemeId = "omarchy"
+    await controller.applyOmarchyTheme()
+    expect(controller.omarchyPollingInterval).not.toBeNull()
+
+    controller.disconnect()
+    expect(controller.omarchyPollingInterval).toBeNull()
+  })
+
+  it("falls back to dark when omarchy endpoint disappears", async () => {
+    // First apply omarchy successfully
+    controller.currentThemeId = "omarchy"
+    await controller.applyOmarchyTheme()
+    expect(document.documentElement.getAttribute("data-theme")).toBe("omarchy")
+
+    // Now make omarchy unavailable
+    global.fetch = vi.fn().mockImplementation(() => {
+      return Promise.resolve({ ok: false, status: 404, json: () => Promise.resolve({}) })
+    })
+
+    await controller.applyOmarchyTheme()
+    expect(controller.currentThemeId).toBe("dark")
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark")
   })
 })
