@@ -403,6 +403,13 @@ export default class extends Controller {
     this.editorPlaceholderTarget.classList.add("hidden")
     this.editorTarget.classList.remove("hidden")
 
+    // Reset table hint immediately when loading new content
+    this._setTableHintVisible(false)
+    if (this._tableCheckTimeout) {
+      clearTimeout(this._tableCheckTimeout)
+      this._tableCheckTimeout = null
+    }
+
     // Delegate persistence tracking to autosave controller
     const autosave = this.getAutosaveController()
     if (autosave) {
@@ -499,6 +506,13 @@ export default class extends Controller {
   // Handle CodeMirror selection change events
   onEditorSelectionChange(event) {
     this.updateLinePosition()
+
+    // Show/hide table hint when cursor moves into/out of a table.
+    // Skip if a doc change already scheduled a check in this event cycle
+    // (typing fires both docChanged and selectionSet in the same CM update).
+    if (this.isMarkdownFile() && !this._tableCheckTimeout) {
+      this.checkTableAtCursor()
+    }
   }
 
   // Dispatch an input event to trigger all listeners after programmatic value changes
@@ -529,11 +543,15 @@ export default class extends Controller {
     const cursorInfo = codemirrorController.getCursorPosition()
     const tableInfo = findTableAtPosition(text, cursorInfo.offset)
 
-    if (tableInfo) {
-      this.tableHintTarget.classList.remove("hidden")
-    } else {
-      this.tableHintTarget.classList.add("hidden")
-    }
+    this._setTableHintVisible(!!tableInfo)
+  }
+
+  // Toggle table hint visibility. Consolidated here because Tailwind's
+  // .inline-block is declared after .hidden at equal specificity, so
+  // both classes must be swapped to actually change display.
+  _setTableHintVisible(visible) {
+    this.tableHintTarget.classList.toggle("hidden", !visible)
+    this.tableHintTarget.classList.toggle("inline-block", visible)
   }
 
   // === Autosave Event Handlers ===

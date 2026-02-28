@@ -1,6 +1,9 @@
 // Markdown utility functions - Pure functions for markdown analysis
 // Extracted for testability
 
+// Pre-compiled regex for validating markdown table separator rows (e.g. |---|---|)
+const TABLE_SEPARATOR_RE = /^\|[\s:]*-+[\s:]*(\|[\s:]*-+[\s:]*)*\|?\s*$/
+
 /**
  * Find a markdown table at the given cursor position
  * @param {string} text - Full document text
@@ -8,24 +11,29 @@
  * @returns {object|null} - Table info with startPos, endPos, lines, or null if not in table
  */
 export function findTableAtPosition(text, pos) {
+  // Early-out: extract current line without splitting the entire document.
+  // This makes the common case (cursor NOT in a table) nearly zero-cost.
+  const lineStart = text.lastIndexOf("\n", pos - 1) + 1
+  const lineEnd = text.indexOf("\n", pos)
+  const currentLineText = text.substring(lineStart, lineEnd === -1 ? text.length : lineEnd)
+
+  if (!currentLineText.trimStart().startsWith("|")) {
+    return null
+  }
+
+  // Only split when we know we're on a pipe-line
   const lines = text.split("\n")
-  let lineStart = 0
+  let offset = 0
   let currentLine = 0
 
   // Find which line the cursor is on
   for (let i = 0; i < lines.length; i++) {
-    const lineEnd = lineStart + lines[i].length
-    if (pos >= lineStart && pos <= lineEnd) {
+    const end = offset + lines[i].length
+    if (pos >= offset && pos <= end) {
       currentLine = i
       break
     }
-    lineStart = lineEnd + 1 // +1 for newline
-  }
-
-  // Check if current line looks like a table row
-  const line = lines[currentLine]
-  if (!line || !line.trim().startsWith("|")) {
-    return null
+    offset = end + 1 // +1 for newline
   }
 
   // Find table boundaries (search up and down for table rows)
@@ -47,6 +55,12 @@ export function findTableAtPosition(text, pos) {
     return null
   }
 
+  // Validate that the table contains a separator row (e.g. |---|---|)
+  const tableLines = lines.slice(startLine, endLine + 1)
+  if (!tableLines.some(l => TABLE_SEPARATOR_RE.test(l.trim()))) {
+    return null
+  }
+
   // Calculate positions
   let startPos = 0
   for (let i = 0; i < startLine; i++) {
@@ -64,7 +78,7 @@ export function findTableAtPosition(text, pos) {
     endLine,
     startPos,
     endPos,
-    lines: lines.slice(startLine, endLine + 1)
+    lines: tableLines
   }
 }
 
