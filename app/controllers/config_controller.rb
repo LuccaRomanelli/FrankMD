@@ -4,7 +4,7 @@ class ConfigController < ApplicationController
   # Disable automatic parameter wrapping (Rails wraps JSON params under controller name)
   wrap_parameters false
 
-  before_action :set_config
+  before_action :set_config, except: [ :omarchy_theme ]
 
   # GET /config/editor
   # Returns the editor config partial for Turbo replacement

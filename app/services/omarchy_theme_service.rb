@@ -22,6 +22,8 @@ class OmarchyThemeService
         variables: variables,
         is_dark: dark_background?(colors[:background])
       }
+    rescue Errno::ENOENT, Errno::EACCES
+      nil
     end
 
     private
@@ -33,8 +35,9 @@ class OmarchyThemeService
       content.each_line do |line|
         line = line.strip
 
-        if (match = line.match(/\A\[colors\.(\w+)\]\z/))
-          current_section = match[1]
+        if line.start_with?("[")
+          match = line.match(/\A\[colors\.(\w+)\]\z/)
+          current_section = match ? match[1] : nil
           next
         end
 
